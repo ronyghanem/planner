@@ -1978,3 +1978,30 @@ h1 {
     }
 }
 
+.app-loading {
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+gap: 14px;
+background: #f8fafc;
+color: #64748b;
+font-size: 14px;
+}
+
+.loading-spinner {
+width: 34px;
+height: 34px;
+border: 3px solid #e2e8f0;
+border-top-color: #4f46e5;
+border-radius: 50%;
+animation: plannerSpin 0.8s linear infinite;
+}
+
+@keyframes plannerSpin {
+to {
+transform: rotate(360deg);
+}
+}
+
