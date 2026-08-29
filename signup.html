@@ -1,21 +1,22 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>Create Account - Planner</title>
+<title>Create Account - Planner</title>
 
-    <link
-        rel="stylesheet"
-        href="auth.css"
-    >
+<link
+    rel="stylesheet"
+    href="auth.css"
+>
 
 </head>
 
@@ -23,159 +24,164 @@
 
 <div class="auth-page">
 
-    <div class="auth-card">
+<div class="auth-card">
 
-        <div class="auth-logo">
-            P
+    <!-- ORIGINAL PLANNER LOGO -->
+    <div class="auth-logo">
+        <img
+            src="img/image1.jpg"
+            alt="My Planner Logo"
+        >
+    </div>
+
+
+    <h1>
+        Create account
+    </h1>
+
+
+    <p class="auth-subtitle">
+        Create your free Planner account
+        and keep everything organized.
+    </p>
+
+
+    <div
+        id="authMessage"
+        class="auth-message"
+    ></div>
+
+
+    <form
+        id="signupForm"
+        class="auth-form"
+    >
+
+        <div class="auth-field">
+
+            <label for="email">
+                Email
+            </label>
+
+            <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                autocomplete="email"
+                required
+            >
+
         </div>
 
 
-        <h1>
-            Create account
-        </h1>
+        <div class="auth-field">
+
+            <label for="password">
+                Password
+            </label>
 
 
-        <p class="auth-subtitle">
-            Create your free Planner account
-            and keep everything organized.
-        </p>
-
-
-        <div
-            id="authMessage"
-            class="auth-message"
-        ></div>
-
-
-        <form
-            id="signupForm"
-            class="auth-form"
-        >
-
-            <div class="auth-field">
-
-                <label for="email">
-                    Email
-                </label>
+            <div class="password-row">
 
                 <input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    autocomplete="email"
+                    id="password"
+                    type="password"
+                    placeholder="At least 6 characters"
+                    autocomplete="new-password"
                     required
                 >
 
-            </div>
 
-
-            <div class="auth-field">
-
-                <label for="password">
-                    Password
-                </label>
-
-
-                <div class="password-row">
-
-                    <input
-                        id="password"
-                        type="password"
-                        placeholder="At least 6 characters"
-                        autocomplete="new-password"
-                        required
-                    >
-
-
-                    <button
-                        type="button"
-                        class="password-toggle"
-                        data-target="password"
-                    >
-                        👁
-                    </button>
-
-                </div>
+                <button
+                    type="button"
+                    class="password-toggle"
+                    data-target="password"
+                    aria-label="Show password"
+                >
+                    👁
+                </button>
 
             </div>
 
-
-            <div class="auth-field">
-
-                <label for="confirmPassword">
-                    Confirm Password
-                </label>
+        </div>
 
 
-                <div class="password-row">
+        <div class="auth-field">
 
-                    <input
-                        id="confirmPassword"
-                        type="password"
-                        placeholder="Repeat your password"
-                        autocomplete="new-password"
-                        required
-                    >
+            <label for="confirmPassword">
+                Confirm Password
+            </label>
 
 
-                    <button
-                        type="button"
-                        class="password-toggle"
-                        data-target="confirmPassword"
-                    >
-                        👁
-                    </button>
+            <div class="password-row">
 
-                </div>
+                <input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Repeat your password"
+                    autocomplete="new-password"
+                    required
+                >
+
+
+                <button
+                    type="button"
+                    class="password-toggle"
+                    data-target="confirmPassword"
+                    aria-label="Show password"
+                >
+                    👁
+                </button>
 
             </div>
 
-
-            <button
-                id="signupButton"
-                type="submit"
-                class="auth-button"
-            >
-                Create Account
-            </button>
-
-        </form>
-
-
-        <div class="divider">
-            OR
         </div>
 
 
         <button
-            id="googleButton"
-            type="button"
-            class="google-button"
+            id="signupButton"
+            type="submit"
+            class="auth-button"
         >
-
-            <span class="google-icon">
-                G
-            </span>
-
-            Continue with Google
-
+            Create Account
         </button>
 
+    </form>
 
-        <div class="auth-footer">
 
-            Already have an account?
+    <div class="divider">
+        OR
+    </div>
 
-            <a href="login.html">
-                Sign in
-            </a>
 
-        </div>
+    <button
+        id="googleButton"
+        type="button"
+        class="google-button"
+    >
+
+        <span class="google-icon">
+            G
+        </span>
+
+        Continue with Google
+
+    </button>
+
+
+    <div class="auth-footer">
+
+        Already have an account?
+
+        <a href="login.html">
+            Sign in
+        </a>
 
     </div>
 
 </div>
 
+</div>
 
 <script
     type="module"

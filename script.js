@@ -26,100 +26,111 @@ import {
 // =====================================================
 
 let items = [];
-
 let currentUser = null;
-
 let currentType = "meeting";
-
 let editingId = null;
-
 let unsubscribeItems = null;
+
+
+// =====================================================
+// SAFE DOM HELPERS
+// =====================================================
+
+const $ = (id) => document.getElementById(id);
+
+const addClick = (element, callback) => {
+    if (element) {
+        element.addEventListener("click", callback);
+    }
+};
+
+const setText = (element, value) => {
+    if (element) {
+        element.textContent = value;
+    }
+};
+
+const setDisplay = (element, value) => {
+    if (element) {
+        element.style.display = value;
+    }
+};
 
 
 // =====================================================
 // ELEMENTS
 // =====================================================
 
-const modal =
-    document.getElementById("modal");
-
-const form =
-    document.getElementById("itemForm");
-
-const titleInput =
-    document.getElementById("title");
-
-const dateInput =
-    document.getElementById("date");
-
-const timeInput =
-    document.getElementById("time");
-
-const descriptionInput =
-    document.getElementById("description");
-
-const dateTimeFields =
-    document.getElementById("dateTimeFields");
-
-const extraFields =
-    document.getElementById("extraFields");
-
-const plannerApp =
-    document.getElementById("plannerApp");
-
-const appLoading =
-    document.getElementById("appLoading");
+let modal;
+let form;
+let titleInput;
+let dateInput;
+let timeInput;
+let descriptionInput;
+let dateTimeFields;
+let extraFields;
+let plannerApp;
+let appLoading;
 
 
 // =====================================================
-// AUTHENTICATION GUARD
+// INITIALIZE DOM
 // =====================================================
 
-onAuthStateChanged(
-    auth,
-    user => {
+document.addEventListener("DOMContentLoaded", () => {
 
-        if (!user) {
+    modal = $("modal");
+    form = $("itemForm");
+    titleInput = $("title");
+    dateInput = $("date");
+    timeInput = $("time");
+    descriptionInput = $("description");
+    dateTimeFields = $("dateTimeFields");
+    extraFields = $("extraFields");
+    plannerApp = $("plannerApp");
+    appLoading = $("appLoading");
 
-            if (unsubscribeItems) {
-                unsubscribeItems();
-                unsubscribeItems = null;
-            }
+    setupEventListeners();
+    setupLogout();
 
-            window.location.replace(
-                "login.html"
-            );
+});
 
-            return;
+
+// =====================================================
+// AUTHENTICATION
+// =====================================================
+
+onAuthStateChanged(auth, (user) => {
+
+    if (!user) {
+
+        if (unsubscribeItems) {
+            unsubscribeItems();
+            unsubscribeItems = null;
         }
 
+        // Only redirect if this page actually requires authentication.
+        window.location.replace("login.html");
 
-        currentUser = user;
-
-
-        const emailElement =
-            document.getElementById(
-                "userEmail"
-            );
-
-        if (emailElement) {
-
-            emailElement.textContent =
-                user.email || "User";
-
-        }
-
-
-        appLoading.style.display =
-            "none";
-
-        plannerApp.style.display =
-            "block";
-
-
-        startRealtimeItemsListener();
+        return;
     }
-);
+
+    currentUser = user;
+
+    const emailElement = $("userEmail");
+
+    if (emailElement) {
+        emailElement.textContent = user.email || "User";
+    }
+
+    // IMPORTANT:
+    // Never directly access .style on an element that may not exist.
+    setDisplay(appLoading, "none");
+    setDisplay(plannerApp, "block");
+
+    startRealtimeItemsListener();
+
+});
 
 
 // =====================================================
@@ -151,71 +162,63 @@ function startRealtimeItemsListener() {
         return;
     }
 
-
     if (unsubscribeItems) {
         unsubscribeItems();
+        unsubscribeItems = null;
     }
 
+    const itemsCollection = getItemsCollection();
 
-    const itemsCollection =
-        getItemsCollection();
+    if (!itemsCollection) {
+        return;
+    }
 
+    const itemsQuery = query(
+        itemsCollection,
+        orderBy("createdAt", "desc")
+    );
 
-    const itemsQuery =
-        query(
-            itemsCollection,
-            orderBy("createdAt", "desc")
-        );
+    unsubscribeItems = onSnapshot(
+        itemsQuery,
 
+        (snapshot) => {
 
-    unsubscribeItems =
-        onSnapshot(
-            itemsQuery,
-            snapshot => {
+            items = snapshot.docs.map((itemDocument) => ({
+                id: itemDocument.id,
+                ...itemDocument.data()
+            }));
 
-                items =
-                    snapshot.docs.map(
-                        itemDocument => ({
-                            id:
-                                itemDocument.id,
+            renderAll();
+        },
 
-                            ...itemDocument.data()
-                        })
-                    );
+        (error) => {
 
+            console.error(
+                "Firestore listener error:",
+                error
+            );
 
-                renderAll();
-            },
+            console.error(
+                "If this is an index error, Firebase will provide a link in the console."
+            );
 
-            error => {
-
-                console.error(
-                    "Firestore listener error:",
-                    error
+            // Don't repeatedly spam alerts.
+            if (
+                error?.code === "failed-precondition"
+            ) {
+                alert(
+                    "Firestore needs an index for this query. Check the Firebase Console."
                 );
-
+            } else {
                 alert(
                     "Unable to load your planner data. Please check your Firebase Firestore setup."
                 );
             }
-        );
+
+        }
+    );
+
 }
-
-
-// =====================================================
-// INITIALIZE
-// =====================================================
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        setupEventListeners();
-
-        setupLogout();
-
-    }
-);
 
 
 // =====================================================
@@ -225,66 +228,48 @@ document.addEventListener(
 function setupEventListeners() {
 
     // TODAY
-
-    document
-        .getElementById("todayAction")
-        .addEventListener(
-            "click",
-            () => {
-                showSection("today");
-            }
-        );
+    addClick(
+        $("todayAction"),
+        () => showSection("today")
+    );
 
 
     // ADD MEETING
-
-    document
-        .getElementById("addMeetingAction")
-        .addEventListener(
-            "click",
-            () => {
-                openModal("meeting");
-            }
-        );
+    addClick(
+        $("addMeetingAction"),
+        () => openModal("meeting")
+    );
 
 
     // ADD INTERVIEW
-
-    document
-        .getElementById("addInterviewAction")
-        .addEventListener(
-            "click",
-            () => {
-                openModal("interview");
-            }
-        );
+    addClick(
+        $("addInterviewAction"),
+        () => openModal("interview")
+    );
 
 
     // ADD NOTE
-
-    document
-        .getElementById("addNoteAction")
-        .addEventListener(
-            "click",
-            () => {
-                openModal("note");
-            }
-        );
+    addClick(
+        $("addNoteAction"),
+        () => openModal("note")
+    );
 
 
     // VIEW BUTTONS
-
     document
         .querySelectorAll(".view-btn")
-        .forEach(button => {
+        .forEach((button) => {
 
             button.addEventListener(
                 "click",
                 () => {
 
-                    showSection(
-                        button.dataset.section
-                    );
+                    const section =
+                        button.dataset.section;
+
+                    if (section) {
+                        showSection(section);
+                    }
 
                 }
             );
@@ -293,63 +278,55 @@ function setupEventListeners() {
 
 
     // FORM
-
-    form.addEventListener(
-        "submit",
-        handleFormSubmit
-    );
+    if (form) {
+        form.addEventListener(
+            "submit",
+            handleFormSubmit
+        );
+    }
 
 
     // CLOSE MODAL
-
-    document
-        .getElementById("closeModalBtn")
-        .addEventListener(
-            "click",
-            closeModal
-        );
-
-
-    // CANCEL
-
-    document
-        .getElementById("cancelBtn")
-        .addEventListener(
-            "click",
-            closeModal
-        );
-
-
-    // CLICK OUTSIDE MODAL
-
-    modal.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target === modal
-            ) {
-
-                closeModal();
-
-            }
-
-        }
+    addClick(
+        $("closeModalBtn"),
+        closeModal
     );
 
 
-    // ESCAPE
+    // CANCEL
+    addClick(
+        $("cancelBtn"),
+        closeModal
+    );
 
+
+    // CLICK OUTSIDE MODAL
+    if (modal) {
+
+        modal.addEventListener(
+            "click",
+            (event) => {
+
+                if (
+                    event.target === modal
+                ) {
+                    closeModal();
+                }
+
+            }
+        );
+
+    }
+
+
+    // ESCAPE
     document.addEventListener(
         "keydown",
-        event => {
+        (event) => {
 
-            if (
-                event.key === "Escape"
-            ) {
+            if (event.key === "Escape") {
 
                 closeModal();
-
                 closeAllMenus();
 
             }
@@ -359,23 +336,22 @@ function setupEventListeners() {
 
 
     // CLOSE MENUS
-
     document.addEventListener(
         "click",
-        event => {
+        (event) => {
+
+            const target = event.target;
 
             if (
-                !event.target.closest(
-                    ".item-menu"
-                )
+                target instanceof Element &&
+                !target.closest(".item-menu")
             ) {
-
                 closeAllMenus();
-
             }
 
         }
     );
+
 }
 
 
@@ -386,30 +362,23 @@ function setupEventListeners() {
 function setupLogout() {
 
     const logoutButton =
-        document.getElementById(
-            "logoutButton"
-        );
-
+        $("logoutButton");
 
     if (!logoutButton) {
         return;
     }
 
-
     logoutButton.addEventListener(
         "click",
         async () => {
 
-            const confirmed =
-                confirm(
-                    "Are you sure you want to logout?"
-                );
-
+            const confirmed = confirm(
+                "Are you sure you want to logout?"
+            );
 
             if (!confirmed) {
                 return;
             }
-
 
             try {
 
@@ -421,7 +390,10 @@ function setupLogout() {
 
             } catch (error) {
 
-                console.error(error);
+                console.error(
+                    "Logout error:",
+                    error
+                );
 
                 alert(
                     "Unable to logout. Please try again."
@@ -431,6 +403,7 @@ function setupLogout() {
 
         }
     );
+
 }
 
 
@@ -441,34 +414,16 @@ function setupLogout() {
 function showSection(section) {
 
     const sections = {
-
-        today:
-            document.getElementById(
-                "todaySection"
-            ),
-
-        meetings:
-            document.getElementById(
-                "meetingsSection"
-            ),
-
-        interviews:
-            document.getElementById(
-                "interviewsSection"
-            ),
-
-        notes:
-            document.getElementById(
-                "notesSection"
-            )
+        today: $("todaySection"),
+        meetings: $("meetingsSection"),
+        interviews: $("interviewsSection"),
+        notes: $("notesSection")
     };
 
 
     document
-        .querySelectorAll(
-            ".planner-section"
-        )
-        .forEach(element => {
+        .querySelectorAll(".planner-section")
+        .forEach((element) => {
 
             element.classList.add(
                 "hidden-section"
@@ -478,24 +433,22 @@ function showSection(section) {
 
 
     document
-        .querySelectorAll(
-            ".view-btn"
-        )
-        .forEach(button => {
+        .querySelectorAll(".view-btn")
+        .forEach((button) => {
 
-            button.classList.remove(
-                "active"
-            );
+            button.classList.remove("active");
 
         });
 
 
-    if (sections[section]) {
+    const selectedSection =
+        sections[section];
 
-        sections[section]
-            .classList.remove(
-                "hidden-section"
-            );
+    if (selectedSection) {
+
+        selectedSection.classList.remove(
+            "hidden-section"
+        );
 
     }
 
@@ -505,7 +458,6 @@ function showSection(section) {
             `.view-btn[data-section="${section}"]`
         );
 
-
     if (activeButton) {
 
         activeButton.classList.add(
@@ -513,6 +465,7 @@ function showSection(section) {
         );
 
     }
+
 }
 
 
@@ -520,36 +473,33 @@ function showSection(section) {
 // OPEN MODAL
 // =====================================================
 
-function openModal(
-    type,
-    item = null
-) {
+function openModal(type, item = null) {
+
+    if (!modal || !form) {
+        console.error(
+            "Planner modal/form is missing from HTML."
+        );
+        return;
+    }
 
     currentType = type;
 
-    editingId =
-        item
-            ? item.id
-            : null;
+    editingId = item
+        ? item.id
+        : null;
 
 
     form.reset();
 
 
     const modalTitle =
-        document.getElementById(
-            "modalTitle"
-        );
+        $("modalTitle");
 
     const modalDescription =
-        document.getElementById(
-            "modalDescription"
-        );
+        $("modalDescription");
 
     const modalIcon =
-        document.getElementById(
-            "modalIcon"
-        );
+        $("modalIcon");
 
 
     // =================================================
@@ -558,64 +508,72 @@ function openModal(
 
     if (type === "meeting") {
 
-        modalTitle.textContent =
+        setText(
+            modalTitle,
             item
                 ? "Edit Meeting"
-                : "Add Meeting";
+                : "Add Meeting"
+        );
 
-
-        modalDescription.textContent =
+        setText(
+            modalDescription,
             item
                 ? "Update your meeting details."
-                : "Add a new meeting.";
+                : "Add a new meeting."
+        );
+
+        setText(
+            modalIcon,
+            "📅"
+        );
 
 
-        modalIcon.textContent =
-            "📅";
+        setDisplay(
+            dateTimeFields,
+            "block"
+        );
 
 
-        dateTimeFields.style.display =
-            "block";
+        if (extraFields) {
 
+            extraFields.innerHTML = `
+                <div class="form-group">
 
-        extraFields.innerHTML = `
+                    <label for="location">
+                        Location
+                        <span class="optional">
+                            Optional
+                        </span>
+                    </label>
 
-            <div class="form-group">
+                    <input
+                        type="text"
+                        id="location"
+                        placeholder="e.g. Beirut Office"
+                    >
 
-                <label for="location">
-                    Location
-                    <span class="optional">
-                        Optional
-                    </span>
-                </label>
+                </div>
 
-                <input
-                    type="text"
-                    id="location"
-                    placeholder="e.g. Beirut Office"
-                >
+                <div class="form-group">
 
-            </div>
+                    <label for="meetingLink">
+                        Meeting Link
+                        <span class="optional">
+                            Optional
+                        </span>
+                    </label>
 
+                    <input
+                        type="url"
+                        id="meetingLink"
+                        placeholder="https://zoom.us/..."
+                    >
 
-            <div class="form-group">
+                </div>
+            `;
 
-                <label for="meetingLink">
-                    Meeting Link
-                    <span class="optional">
-                        Optional
-                    </span>
-                </label>
+        }
 
-                <input
-                    type="url"
-                    id="meetingLink"
-                    placeholder="https://zoom.us/..."
-                >
-
-            </div>
-
-        `;
     }
 
 
@@ -625,86 +583,95 @@ function openModal(
 
     else if (type === "interview") {
 
-        modalTitle.textContent =
+        setText(
+            modalTitle,
             item
                 ? "Edit Interview"
-                : "Add Interview";
+                : "Add Interview"
+        );
 
-
-        modalDescription.textContent =
+        setText(
+            modalDescription,
             item
                 ? "Update your interview details."
-                : "Add a new job interview.";
+                : "Add a new job interview."
+        );
+
+        setText(
+            modalIcon,
+            "💼"
+        );
 
 
-        modalIcon.textContent =
-            "💼";
+        setDisplay(
+            dateTimeFields,
+            "block"
+        );
 
 
-        dateTimeFields.style.display =
-            "block";
+        if (extraFields) {
+
+            extraFields.innerHTML = `
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="company">
+                            Company
+                            <span class="optional">
+                                Optional
+                            </span>
+                        </label>
+
+                        <input
+                            type="text"
+                            id="company"
+                            placeholder="Company name"
+                        >
+
+                    </div>
 
 
-        extraFields.innerHTML = `
+                    <div class="form-group">
 
-            <div class="form-row">
+                        <label for="position">
+                            Position
+                            <span class="optional">
+                                Optional
+                            </span>
+                        </label>
 
-                <div class="form-group">
+                        <input
+                            type="text"
+                            id="position"
+                            placeholder="Job title"
+                        >
 
-                    <label for="company">
-                        Company
-                        <span class="optional">
-                            Optional
-                        </span>
-                    </label>
-
-                    <input
-                        type="text"
-                        id="company"
-                        placeholder="Company name"
-                    >
+                    </div>
 
                 </div>
 
 
                 <div class="form-group">
 
-                    <label for="position">
-                        Position
+                    <label for="meetingLink">
+                        Interview Link
                         <span class="optional">
                             Optional
                         </span>
                     </label>
 
                     <input
-                        type="text"
-                        id="position"
-                        placeholder="Job title"
+                        type="url"
+                        id="meetingLink"
+                        placeholder="https://zoom.us/..."
                     >
 
                 </div>
+            `;
 
-            </div>
+        }
 
-
-            <div class="form-group">
-
-                <label for="meetingLink">
-                    Interview Link
-                    <span class="optional">
-                        Optional
-                    </span>
-                </label>
-
-                <input
-                    type="url"
-                    id="meetingLink"
-                    placeholder="https://zoom.us/..."
-                >
-
-            </div>
-
-        `;
     }
 
 
@@ -714,28 +681,36 @@ function openModal(
 
     else {
 
-        modalTitle.textContent =
+        setText(
+            modalTitle,
             item
                 ? "Edit Note"
-                : "Add Note";
+                : "Add Note"
+        );
 
-
-        modalDescription.textContent =
+        setText(
+            modalDescription,
             item
                 ? "Update your note."
-                : "Save an important note.";
+                : "Save an important note."
+        );
+
+        setText(
+            modalIcon,
+            "📝"
+        );
 
 
-        modalIcon.textContent =
-            "📝";
+        setDisplay(
+            dateTimeFields,
+            "none"
+        );
 
 
-        dateTimeFields.style.display =
-            "none";
+        if (extraFields) {
+            extraFields.innerHTML = "";
+        }
 
-
-        extraFields.innerHTML =
-            "";
     }
 
 
@@ -745,22 +720,28 @@ function openModal(
 
     if (item) {
 
-        titleInput.value =
-            item.title || "";
+        if (titleInput) {
+            titleInput.value =
+                item.title || "";
+        }
 
-
-        descriptionInput.value =
-            item.description || "";
+        if (descriptionInput) {
+            descriptionInput.value =
+                item.description || "";
+        }
 
 
         if (type !== "note") {
 
-            dateInput.value =
-                item.date || "";
+            if (dateInput) {
+                dateInput.value =
+                    item.date || "";
+            }
 
-
-            timeInput.value =
-                item.time || "";
+            if (timeInput) {
+                timeInput.value =
+                    item.time || "";
+            }
 
         }
 
@@ -768,29 +749,20 @@ function openModal(
         if (type === "meeting") {
 
             const location =
-                document.getElementById(
-                    "location"
-                );
+                $("location");
 
             const meetingLink =
-                document.getElementById(
-                    "meetingLink"
-                );
+                $("meetingLink");
 
 
             if (location) {
-
                 location.value =
                     item.location || "";
-
             }
 
-
             if (meetingLink) {
-
                 meetingLink.value =
                     item.meetingLink || "";
-
             }
 
         }
@@ -799,59 +771,46 @@ function openModal(
         if (type === "interview") {
 
             const company =
-                document.getElementById(
-                    "company"
-                );
+                $("company");
 
             const position =
-                document.getElementById(
-                    "position"
-                );
+                $("position");
 
             const meetingLink =
-                document.getElementById(
-                    "meetingLink"
-                );
+                $("meetingLink");
 
 
             if (company) {
-
                 company.value =
                     item.company || "";
-
             }
-
 
             if (position) {
-
                 position.value =
                     item.position || "";
-
             }
 
-
             if (meetingLink) {
-
                 meetingLink.value =
                     item.meetingLink || "";
-
             }
 
         }
+
     }
 
 
-    modal.classList.add(
-        "active"
-    );
+    modal.classList.add("active");
 
 
-    setTimeout(
-        () => {
+    setTimeout(() => {
+
+        if (titleInput) {
             titleInput.focus();
-        },
-        100
-    );
+        }
+
+    }, 100);
+
 }
 
 
@@ -861,13 +820,18 @@ function openModal(
 
 function closeModal() {
 
-    modal.classList.remove(
-        "active"
-    );
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove("active");
 
     editingId = null;
 
-    form.reset();
+    if (form) {
+        form.reset();
+    }
+
 }
 
 
@@ -875,9 +839,7 @@ function closeModal() {
 // FORM SUBMIT
 // =====================================================
 
-async function handleFormSubmit(
-    event
-) {
+async function handleFormSubmit(event) {
 
     event.preventDefault();
 
@@ -892,19 +854,34 @@ async function handleFormSubmit(
     }
 
 
+    if (!titleInput) {
+
+        alert(
+            "The title field is missing."
+        );
+
+        return;
+    }
+
+
     const title =
         titleInput.value.trim();
 
 
     const description =
-        descriptionInput.value.trim();
+        descriptionInput
+            ? descriptionInput.value.trim()
+            : "";
 
 
-    // DATE/TIME REQUIRED FOR MEETING/INTERVIEW
+    // DATE/TIME REQUIRED
+    // FOR MEETINGS AND INTERVIEWS
 
     if (
         currentType !== "note" &&
         (
+            !dateInput ||
+            !timeInput ||
             !dateInput.value ||
             !timeInput.value
         )
@@ -919,15 +896,17 @@ async function handleFormSubmit(
 
 
     const saveButton =
-        form.querySelector(
-            ".save-btn"
-        );
+        form?.querySelector(".save-btn");
 
 
-    saveButton.disabled = true;
+    if (saveButton) {
 
-    saveButton.textContent =
-        "Saving...";
+        saveButton.disabled = true;
+
+        saveButton.textContent =
+            "Saving...";
+
+    }
 
 
     try {
@@ -958,12 +937,11 @@ async function handleFormSubmit(
 
                 updatedAt:
                     serverTimestamp()
+
             };
 
 
-            if (
-                currentType !== "note"
-            ) {
+            if (currentType !== "note") {
 
                 updatedData.date =
                     dateInput.value;
@@ -974,85 +952,69 @@ async function handleFormSubmit(
             } else {
 
                 updatedData.date = "";
-
                 updatedData.time = "";
 
             }
 
 
-            if (
-                currentType === "meeting"
-            ) {
+            // MEETING
+
+            if (currentType === "meeting") {
+
+                const location =
+                    $("location");
+
+                const meetingLink =
+                    $("meetingLink");
+
 
                 updatedData.location =
-                    document
-                        .getElementById(
-                            "location"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    location?.value?.trim() || "";
 
                 updatedData.meetingLink =
-                    document
-                        .getElementById(
-                            "meetingLink"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    meetingLink?.value?.trim() || "";
 
                 updatedData.company = "";
-
                 updatedData.position = "";
+
             }
 
 
-            if (
-                currentType === "interview"
-            ) {
+            // INTERVIEW
+
+            if (currentType === "interview") {
+
+                const company =
+                    $("company");
+
+                const position =
+                    $("position");
+
+                const meetingLink =
+                    $("meetingLink");
+
 
                 updatedData.company =
-                    document
-                        .getElementById(
-                            "company"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    company?.value?.trim() || "";
 
                 updatedData.position =
-                    document
-                        .getElementById(
-                            "position"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    position?.value?.trim() || "";
 
                 updatedData.meetingLink =
-                    document
-                        .getElementById(
-                            "meetingLink"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    meetingLink?.value?.trim() || "";
 
                 updatedData.location = "";
+
             }
 
 
-            if (
-                currentType === "note"
-            ) {
+            // NOTE
+
+            if (currentType === "note") {
 
                 updatedData.location = "";
-
                 updatedData.company = "";
-
                 updatedData.position = "";
-
                 updatedData.meetingLink = "";
 
             }
@@ -1103,62 +1065,52 @@ async function handleFormSubmit(
 
                 updatedAt:
                     serverTimestamp()
+
             };
 
 
-            if (
-                currentType === "meeting"
-            ) {
+            // MEETING
+
+            if (currentType === "meeting") {
+
+                const location =
+                    $("location");
+
+                const meetingLink =
+                    $("meetingLink");
+
 
                 newItem.location =
-                    document
-                        .getElementById(
-                            "location"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    location?.value?.trim() || "";
 
                 newItem.meetingLink =
-                    document
-                        .getElementById(
-                            "meetingLink"
-                        )
-                        ?.value
-                        .trim() || "";
+                    meetingLink?.value?.trim() || "";
 
             }
 
 
-            if (
-                currentType === "interview"
-            ) {
+            // INTERVIEW
+
+            if (currentType === "interview") {
+
+                const company =
+                    $("company");
+
+                const position =
+                    $("position");
+
+                const meetingLink =
+                    $("meetingLink");
+
 
                 newItem.company =
-                    document
-                        .getElementById(
-                            "company"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    company?.value?.trim() || "";
 
                 newItem.position =
-                    document
-                        .getElementById(
-                            "position"
-                        )
-                        ?.value
-                        .trim() || "";
-
+                    position?.value?.trim() || "";
 
                 newItem.meetingLink =
-                    document
-                        .getElementById(
-                            "meetingLink"
-                        )
-                        ?.value
-                        .trim() || "";
+                    meetingLink?.value?.trim() || "";
 
             }
 
@@ -1167,32 +1119,42 @@ async function handleFormSubmit(
                 getItemsCollection(),
                 newItem
             );
+
         }
 
 
         closeModal();
 
-    } catch (error) {
+    }
+
+
+    catch (error) {
 
         console.error(
             "Save error:",
             error
         );
 
-
         alert(
             "Unable to save this item. Please check your Firebase Firestore setup."
         );
 
-    } finally {
+    }
 
-        saveButton.disabled =
-            false;
 
-        saveButton.textContent =
-            "Save";
+    finally {
+
+        if (saveButton) {
+
+            saveButton.disabled = false;
+
+            saveButton.textContent =
+                "Save";
+
+        }
 
     }
+
 }
 
 
@@ -1202,19 +1164,11 @@ async function handleFormSubmit(
 
 function isFinished(item) {
 
-    if (
-        item.type === "note"
-    ) {
-
+    if (item.type === "note") {
         return false;
     }
 
-
-    if (
-        !item.date ||
-        !item.time
-    ) {
-
+    if (!item.date || !item.time) {
         return false;
     }
 
@@ -1225,10 +1179,18 @@ function isFinished(item) {
         );
 
 
+    if (Number.isNaN(
+        scheduled.getTime()
+    )) {
+        return false;
+    }
+
+
     return (
         scheduled.getTime() <
         Date.now()
     );
+
 }
 
 
@@ -1238,22 +1200,16 @@ function isFinished(item) {
 
 function isToday(item) {
 
-    if (
-        item.type === "note"
-    ) {
-
+    if (item.type === "note") {
         return false;
     }
-
 
     if (!item.date) {
-
         return false;
     }
 
 
-    const now =
-        new Date();
+    const now = new Date();
 
 
     const year =
@@ -1263,25 +1219,20 @@ function isToday(item) {
     const month =
         String(
             now.getMonth() + 1
-        ).padStart(
-            2,
-            "0"
-        );
+        ).padStart(2, "0");
 
 
     const day =
         String(
             now.getDate()
-        ).padStart(
-            2,
-            "0"
-        );
+        ).padStart(2, "0");
 
 
     return (
         item.date ===
         `${year}-${month}-${day}`
     );
+
 }
 
 
@@ -1302,6 +1253,15 @@ function formatDate(date) {
         );
 
 
+    if (
+        Number.isNaN(
+            object.getTime()
+        )
+    ) {
+        return date;
+    }
+
+
     return object.toLocaleDateString(
         undefined,
         {
@@ -1311,6 +1271,7 @@ function formatDate(date) {
             year: "numeric"
         }
     );
+
 }
 
 
@@ -1325,11 +1286,24 @@ function formatTime(time) {
     }
 
 
-    const [
-        hours,
-        minutes
-    ] =
+    const parts =
         time.split(":");
+
+
+    const hours =
+        Number(parts[0]);
+
+
+    const minutes =
+        Number(parts[1]);
+
+
+    if (
+        Number.isNaN(hours) ||
+        Number.isNaN(minutes)
+    ) {
+        return time;
+    }
 
 
     const object =
@@ -1337,12 +1311,10 @@ function formatTime(time) {
 
 
     object.setHours(
-        Number(hours)
-    );
-
-
-    object.setMinutes(
-        Number(minutes)
+        hours,
+        minutes,
+        0,
+        0
     );
 
 
@@ -1353,6 +1325,7 @@ function formatTime(time) {
             minute: "2-digit"
         }
     );
+
 }
 
 
@@ -1366,14 +1339,14 @@ function getMeetingLinkName(
 ) {
 
     const lower =
-        url.toLowerCase();
+        String(url || "")
+            .toLowerCase();
 
 
     if (
         lower.includes("zoom.us") ||
         lower.includes("zoom.com")
     ) {
-
         return "Join Zoom";
     }
 
@@ -1386,7 +1359,6 @@ function getMeetingLinkName(
             "teams.live.com"
         )
     ) {
-
         return "Join Microsoft Teams";
     }
 
@@ -1396,7 +1368,6 @@ function getMeetingLinkName(
             "meet.google.com"
         )
     ) {
-
         return "Join Google Meet";
     }
 
@@ -1406,7 +1377,6 @@ function getMeetingLinkName(
             "webex.com"
         )
     ) {
-
         return "Join Webex";
     }
 
@@ -1414,6 +1384,7 @@ function getMeetingLinkName(
     return type === "interview"
         ? "Join Interview"
         : "Open Meeting";
+
 }
 
 
@@ -1428,9 +1399,7 @@ function createItem(item) {
 
 
     const element =
-        document.createElement(
-            "div"
-        );
+        document.createElement("div");
 
 
     element.className =
@@ -1449,16 +1418,11 @@ function createItem(item) {
     if (item.title) {
 
         titleHTML = `
-
             <div class="item-title">
-
-                ${escapeHTML(
-                    item.title
-                )}
-
+                ${escapeHTML(item.title)}
             </div>
-
         `;
+
     }
 
 
@@ -1469,26 +1433,18 @@ function createItem(item) {
     let metaHTML = "";
 
 
-    if (
-        item.type !== "note"
-    ) {
+    if (item.type !== "note") {
 
         metaHTML += `
-
             <span>
                 📅
-                ${formatDate(
-                    item.date
-                )}
+                ${formatDate(item.date)}
             </span>
 
             <span>
                 ⏰
-                ${formatTime(
-                    item.time
-                )}
+                ${formatTime(item.time)}
             </span>
-
         `;
 
 
@@ -1498,15 +1454,14 @@ function createItem(item) {
         ) {
 
             metaHTML += `
-
                 <span>
                     📍
                     ${escapeHTML(
                         item.location
                     )}
                 </span>
-
             `;
+
         }
 
 
@@ -1516,15 +1471,14 @@ function createItem(item) {
         ) {
 
             metaHTML += `
-
                 <span>
                     🏢
                     ${escapeHTML(
                         item.company
                     )}
                 </span>
-
             `;
+
         }
 
 
@@ -1534,15 +1488,14 @@ function createItem(item) {
         ) {
 
             metaHTML += `
-
                 <span>
                     💼
                     ${escapeHTML(
                         item.position
                     )}
                 </span>
-
             `;
+
         }
 
     }
@@ -1551,13 +1504,9 @@ function createItem(item) {
     const metaBlock =
         metaHTML
             ? `
-
                 <div class="item-meta">
-
                     ${metaHTML}
-
                 </div>
-
             `
             : "";
 
@@ -1569,15 +1518,11 @@ function createItem(item) {
     const descriptionHTML =
         item.description
             ? `
-
                 <div class="item-description">
-
                     ${escapeHTML(
                         item.description
                     )}
-
                 </div>
-
             `
             : "";
 
@@ -1610,11 +1555,11 @@ function createItem(item) {
             safeURL =
                 "https://" +
                 safeURL;
+
         }
 
 
         linkHTML = `
-
             <a
                 class="meeting-link"
                 href="${escapeAttribute(
@@ -1623,17 +1568,14 @@ function createItem(item) {
                 target="_blank"
                 rel="noopener noreferrer"
             >
-
                 🔗
-
                 ${getMeetingLinkName(
                     safeURL,
                     item.type
                 )}
-
             </a>
-
         `;
+
     }
 
 
@@ -1644,7 +1586,6 @@ function createItem(item) {
     element.innerHTML = `
 
         <div class="item-icon">
-
             ${
                 item.type === "meeting"
                     ? "📅"
@@ -1652,7 +1593,6 @@ function createItem(item) {
                         ? "💼"
                         : "📝"
             }
-
         </div>
 
 
@@ -1738,85 +1678,90 @@ function createItem(item) {
         );
 
 
-    dotsButton.addEventListener(
-        "click",
-        event => {
+    if (dotsButton && menu) {
 
-            event.preventDefault();
+        dotsButton.addEventListener(
+            "click",
+            (event) => {
 
-            event.stopPropagation();
+                event.preventDefault();
+
+                event.stopPropagation();
 
 
-            document
-                .querySelectorAll(
-                    ".dropdown-menu.show"
-                )
-                .forEach(
-                    otherMenu => {
+                document
+                    .querySelectorAll(
+                        ".dropdown-menu.show"
+                    )
+                    .forEach(
+                        (otherMenu) => {
 
-                        if (
-                            otherMenu !== menu
-                        ) {
+                            if (
+                                otherMenu !== menu
+                            ) {
 
-                            otherMenu.classList.remove(
-                                "show"
-                            );
+                                otherMenu.classList.remove(
+                                    "show"
+                                );
+
+                            }
 
                         }
+                    );
 
-                    }
+
+                menu.classList.toggle(
+                    "show"
                 );
 
+            }
+        );
 
-            menu.classList.toggle(
-                "show"
-            );
-
-        }
-    );
+    }
 
 
-    editButton.addEventListener(
-        "click",
-        event => {
+    if (editButton) {
 
-            event.preventDefault();
+        editButton.addEventListener(
+            "click",
+            (event) => {
 
-            event.stopPropagation();
+                event.preventDefault();
 
+                event.stopPropagation();
 
-            closeAllMenus();
+                closeAllMenus();
 
+                editItem(item.id);
 
-            editItem(
-                item.id
-            );
+            }
+        );
 
-        }
-    );
-
-
-    deleteButton.addEventListener(
-        "click",
-        event => {
-
-            event.preventDefault();
-
-            event.stopPropagation();
+    }
 
 
-            closeAllMenus();
+    if (deleteButton) {
 
+        deleteButton.addEventListener(
+            "click",
+            (event) => {
 
-            deleteItem(
-                item.id
-            );
+                event.preventDefault();
 
-        }
-    );
+                event.stopPropagation();
+
+                closeAllMenus();
+
+                deleteItem(item.id);
+
+            }
+        );
+
+    }
 
 
     return element;
+
 }
 
 
@@ -1831,36 +1776,46 @@ function renderList(
 ) {
 
     const container =
-        document.getElementById(
-            containerId
-        );
+        $(containerId);
 
 
     const empty =
-        document.getElementById(
-            emptyId
+        $(emptyId);
+
+
+    // Prevent null.style / null.innerHTML errors.
+    if (!container) {
+
+        console.warn(
+            `Planner container #${containerId} was not found.`
         );
 
+        return;
 
-    container.innerHTML =
-        "";
-
-
-    data.forEach(
-        item => {
-
-            container.appendChild(
-                createItem(item)
-            );
-
-        }
-    );
+    }
 
 
-    empty.style.display =
-        data.length === 0
-            ? "block"
-            : "none";
+    container.innerHTML = "";
+
+
+    data.forEach((item) => {
+
+        container.appendChild(
+            createItem(item)
+        );
+
+    });
+
+
+    if (empty) {
+
+        empty.style.display =
+            data.length === 0
+                ? "block"
+                : "none";
+
+    }
+
 }
 
 
@@ -1870,26 +1825,29 @@ function renderList(
 
 function sortDateItems(data) {
 
-    return [
-        ...data
-    ].sort(
+    return [...data].sort(
         (a, b) => {
 
             const dateA =
                 new Date(
-                    `${a.date}T${a.time}`
+                    `${a.date || "9999-12-31"}T${a.time || "23:59"}`
                 );
 
 
             const dateB =
                 new Date(
-                    `${b.date}T${b.time}`
+                    `${b.date || "9999-12-31"}T${b.time || "23:59"}`
                 );
 
 
-            return dateA - dateB;
+            return (
+                dateA.getTime() -
+                dateB.getTime()
+            );
+
         }
     );
+
 }
 
 
@@ -1901,48 +1859,42 @@ function renderAll() {
 
     const meetings =
         items.filter(
-            item =>
+            (item) =>
                 item.type === "meeting"
         );
 
 
     const interviews =
         items.filter(
-            item =>
+            (item) =>
                 item.type === "interview"
         );
 
 
     const notes =
         items.filter(
-            item =>
+            (item) =>
                 item.type === "note"
         );
 
 
     const today =
         items.filter(
-            item =>
+            (item) =>
                 isToday(item)
         );
 
 
     const sortedMeetings =
-        sortDateItems(
-            meetings
-        );
+        sortDateItems(meetings);
 
 
     const sortedInterviews =
-        sortDateItems(
-            interviews
-        );
+        sortDateItems(interviews);
 
 
     const sortedToday =
-        sortDateItems(
-            today
-        );
+        sortDateItems(today);
 
 
     const sortedNotes =
@@ -1950,14 +1902,13 @@ function renderAll() {
             (a, b) => {
 
                 const aTime =
-                    a.createdAt?.seconds ||
-                    0;
+                    a.createdAt?.seconds || 0;
 
                 const bTime =
-                    b.createdAt?.seconds ||
-                    0;
+                    b.createdAt?.seconds || 0;
 
                 return bTime - aTime;
+
             }
         );
 
@@ -1966,56 +1917,56 @@ function renderAll() {
     // COUNTS
     // =================================================
 
-    document.getElementById(
-        "todayCount"
-    ).textContent =
-        today.length;
+    setText(
+        $("todayCount"),
+        today.length
+    );
 
 
-    document.getElementById(
-        "meetingCount"
-    ).textContent =
-        meetings.length;
+    setText(
+        $("meetingCount"),
+        meetings.length
+    );
 
 
-    document.getElementById(
-        "interviewCount"
-    ).textContent =
-        interviews.length;
+    setText(
+        $("interviewCount"),
+        interviews.length
+    );
 
 
-    document.getElementById(
-        "noteCount"
-    ).textContent =
-        notes.length;
+    setText(
+        $("noteCount"),
+        notes.length
+    );
 
 
     // =================================================
     // BADGES
     // =================================================
 
-    document.getElementById(
-        "todayBadge"
-    ).textContent =
-        today.length;
+    setText(
+        $("todayBadge"),
+        today.length
+    );
 
 
-    document.getElementById(
-        "meetingsBadge"
-    ).textContent =
-        meetings.length;
+    setText(
+        $("meetingsBadge"),
+        meetings.length
+    );
 
 
-    document.getElementById(
-        "interviewsBadge"
-    ).textContent =
-        interviews.length;
+    setText(
+        $("interviewsBadge"),
+        interviews.length
+    );
 
 
-    document.getElementById(
-        "notesBadge"
-    ).textContent =
-        notes.length;
+    setText(
+        $("notesBadge"),
+        notes.length
+    );
 
 
     // =================================================
@@ -2048,6 +1999,7 @@ function renderAll() {
         "emptyNotes",
         sortedNotes
     );
+
 }
 
 
@@ -2059,7 +2011,7 @@ function editItem(id) {
 
     const item =
         items.find(
-            existingItem =>
+            (existingItem) =>
                 existingItem.id === id
         );
 
@@ -2073,6 +2025,7 @@ function editItem(id) {
         item.type,
         item
     );
+
 }
 
 
@@ -2084,7 +2037,7 @@ async function deleteItem(id) {
 
     const item =
         items.find(
-            existingItem =>
+            (existingItem) =>
                 existingItem.id === id
         );
 
@@ -2122,18 +2075,21 @@ async function deleteItem(id) {
             )
         );
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
         console.error(
             "Delete error:",
             error
         );
 
-
         alert(
             "Unable to delete this item."
         );
+
     }
+
 }
 
 
@@ -2147,13 +2103,16 @@ function closeAllMenus() {
         .querySelectorAll(
             ".dropdown-menu.show"
         )
-        .forEach(menu => {
+        .forEach(
+            (menu) => {
 
-            menu.classList.remove(
-                "show"
-            );
+                menu.classList.remove(
+                    "show"
+                );
 
-        });
+            }
+        );
+
 }
 
 
@@ -2164,16 +2123,15 @@ function closeAllMenus() {
 function escapeHTML(value) {
 
     const div =
-        document.createElement(
-            "div"
-        );
+        document.createElement("div");
 
 
     div.textContent =
-        value;
+        String(value ?? "");
 
 
     return div.innerHTML;
+
 }
 
 
@@ -2183,37 +2141,33 @@ function escapeHTML(value) {
 
 function escapeAttribute(value) {
 
-    return String(value)
-
+    return String(value ?? "")
         .replace(
             /&/g,
             "&amp;"
         )
-
         .replace(
             /"/g,
             "&quot;"
         )
-
         .replace(
             /'/g,
             "&#039;"
         )
-
         .replace(
             /</g,
             "&lt;"
         )
-
         .replace(
             />/g,
             "&gt;"
         );
+
 }
 
 
 // =====================================================
-// AUTOMATIC FINISHED UPDATE
+// AUTOMATIC REFRESH
 // =====================================================
 
 setInterval(

@@ -1,21 +1,22 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>Sign In - Planner</title>
+<title>Sign In - Planner</title>
 
-    <link
-        rel="stylesheet"
-        href="auth.css"
-    >
+<link
+    rel="stylesheet"
+    href="auth.css"
+>
 
 </head>
 
@@ -23,136 +24,140 @@
 
 <div class="auth-page">
 
-    <div class="auth-card">
+<div class="auth-card">
 
-        <div class="auth-logo">
-            P
+    <!-- ORIGINAL PLANNER LOGO -->
+    <div class="auth-logo">
+        <img
+            src="img/image1.jpg"
+            alt="My Planner Logo"
+        >
+    </div>
+
+
+    <h1>
+        Welcome back
+    </h1>
+
+
+    <p class="auth-subtitle">
+        Sign in to manage your meetings,
+        interviews and notes.
+    </p>
+
+
+    <div
+        id="authMessage"
+        class="auth-message"
+    ></div>
+
+
+    <form
+        id="loginForm"
+        class="auth-form"
+    >
+
+        <div class="auth-field">
+
+            <label for="email">
+                Email
+            </label>
+
+            <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                autocomplete="email"
+                required
+            >
+
         </div>
 
 
-        <h1>
-            Welcome back
-        </h1>
+        <div class="auth-field">
+
+            <label for="password">
+                Password
+            </label>
 
 
-        <p class="auth-subtitle">
-            Sign in to manage your meetings,
-            interviews and notes.
-        </p>
-
-
-        <div
-            id="authMessage"
-            class="auth-message"
-        ></div>
-
-
-        <form
-            id="loginForm"
-            class="auth-form"
-        >
-
-            <div class="auth-field">
-
-                <label for="email">
-                    Email
-                </label>
+            <div class="password-row">
 
                 <input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    autocomplete="email"
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
                     required
                 >
 
-            </div>
 
-
-            <div class="auth-field">
-
-                <label for="password">
-                    Password
-                </label>
-
-
-                <div class="password-row">
-
-                    <input
-                        id="password"
-                        type="password"
-                        placeholder="Enter your password"
-                        autocomplete="current-password"
-                        required
-                    >
-
-
-                    <button
-                        type="button"
-                        class="password-toggle"
-                        data-target="password"
-                    >
-                        👁
-                    </button>
-
-                </div>
+                <button
+                    type="button"
+                    class="password-toggle"
+                    data-target="password"
+                    aria-label="Show password"
+                >
+                    👁
+                </button>
 
             </div>
 
-
-            <a
-                href="forgot-password.html"
-                class="forgot-link"
-            >
-                Forgot password?
-            </a>
-
-
-            <button
-                id="loginButton"
-                type="submit"
-                class="auth-button"
-            >
-                Sign In
-            </button>
-
-        </form>
-
-
-        <div class="divider">
-            OR
         </div>
+
+
+        <a
+            href="forgot-password.html"
+            class="forgot-link"
+        >
+            Forgot password?
+        </a>
 
 
         <button
-            id="googleButton"
-            type="button"
-            class="google-button"
+            id="loginButton"
+            type="submit"
+            class="auth-button"
         >
-
-            <span class="google-icon">
-                G
-            </span>
-
-            Continue with Google
-
+            Sign In
         </button>
 
+    </form>
 
-        <div class="auth-footer">
 
-            Don't have an account?
+    <div class="divider">
+        OR
+    </div>
 
-            <a href="signup.html">
-                Create one
-            </a>
 
-        </div>
+    <button
+        id="googleButton"
+        type="button"
+        class="google-button"
+    >
+
+        <span class="google-icon">
+            G
+        </span>
+
+        Continue with Google
+
+    </button>
+
+
+    <div class="auth-footer">
+
+        Don't have an account?
+
+        <a href="signup.html">
+            Create one
+        </a>
 
     </div>
 
 </div>
 
+</div>
 
 <script
     type="module"

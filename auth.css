@@ -1,490 +1,538 @@
 /* =====================================================
-   GLOBAL
+GLOBAL
 ===================================================== */
 
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  }
 
 html,
 body {
-    min-height: 100%;
+min-height: 100%;
 }
 
 body {
-    font-family:
-        Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        Arial,
-        sans-serif;
+font-family:
+Inter,
+-apple-system,
+BlinkMacSystemFont,
+"Segoe UI",
+Roboto,
+Arial,
+sans-serif;
 
-    background:
-        linear-gradient(
-            135deg,
-            #f8fafc 0%,
-            #eef2ff 50%,
-            #f8fafc 100%
-        );
+background:
+    linear-gradient(
+        135deg,
+        #f8fafc 0%,
+        #eef2ff 50%,
+        #f8fafc 100%
+    );
 
-    color: #0f172a;
+color: #0f172a;
+
 }
 
-
 /* =====================================================
-   AUTH PAGE
+AUTH PAGE
 ===================================================== */
 
 .auth-page {
-    min-height: 100vh;
+min-height: 100vh;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+display: flex;
+align-items: center;
+justify-content: center;
 
-    padding: 24px;
+padding: 24px;
+
 }
 
-
 /* =====================================================
-   CARD
+CARD
 ===================================================== */
 
 .auth-card {
-    width: 100%;
-    max-width: 430px;
+width: 100%;
+max-width: 430px;
 
-    background: rgba(255, 255, 255, 0.96);
+background: rgba(255, 255, 255, 0.96);
 
-    border: 1px solid #e2e8f0;
+border: 1px solid #e2e8f0;
+border-radius: 22px;
 
-    border-radius: 22px;
+padding: 34px;
 
-    padding: 34px;
+box-shadow:
+    0 25px 70px
+    rgba(15, 23, 42, 0.10);
 
-    box-shadow:
-        0 25px 70px
-        rgba(15, 23, 42, 0.10);
 }
 
-
 /* =====================================================
-   LOGO
+LOGO
 ===================================================== */
 
 .auth-logo {
-    width: 54px;
-    height: 54px;
+width: 54px;
+height: 54px;
 
-    border-radius: 15px;
+border-radius: 15px;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+display: flex;
+align-items: center;
+justify-content: center;
 
-    margin-bottom: 20px;
+margin-bottom: 20px;
 
-    background:
-        linear-gradient(
-            135deg,
-            #6366f1,
-            #4f46e5
-        );
+overflow: hidden;
 
-    color: white;
+background:
+    linear-gradient(
+        135deg,
+        #6366f1,
+        #4f46e5
+    );
 
-    font-size: 24px;
-    font-weight: 800;
+box-shadow:
+    0 10px 25px
+    rgba(79, 70, 229, 0.25);
 
-    box-shadow:
-        0 10px 25px
-        rgba(79, 70, 229, 0.25);
 }
 
+.auth-logo img {
+width: 100%;
+height: 100%;
+
+display: block;
+
+object-fit: cover;
+
+}
 
 /* =====================================================
-   TITLES
+TITLES
 ===================================================== */
 
 .auth-card h1 {
-    font-size: 28px;
+font-size: 28px;
+line-height: 1.2;
 
-    line-height: 1.2;
+margin-bottom: 8px;
 
-    margin-bottom: 8px;
 }
 
 .auth-subtitle {
-    color: #64748b;
+color: #64748b;
 
-    font-size: 13px;
+font-size: 13px;
+line-height: 1.6;
 
-    line-height: 1.6;
+margin-bottom: 24px;
 
-    margin-bottom: 24px;
 }
 
-
 /* =====================================================
-   FORM
+FORM
 ===================================================== */
 
 .auth-form {
-    display: flex;
+display: flex;
+flex-direction: column;
 
-    flex-direction: column;
+gap: 15px;
 
-    gap: 15px;
 }
 
 .auth-field {
-    display: flex;
+display: flex;
+flex-direction: column;
 
-    flex-direction: column;
+gap: 7px;
 
-    gap: 7px;
 }
 
 .auth-field label {
-    color: #334155;
+color: #334155;
 
-    font-size: 12px;
+font-size: 12px;
+font-weight: 700;
 
-    font-weight: 700;
 }
 
 .auth-field input {
-    width: 100%;
+width: 100%;
+height: 47px;
 
-    height: 47px;
+padding: 0 13px;
 
-    padding: 0 13px;
+border: 1px solid #cbd5e1;
+border-radius: 10px;
 
-    border: 1px solid #cbd5e1;
+outline: none;
 
-    border-radius: 10px;
+background: white;
+color: #0f172a;
 
-    outline: none;
+font-family: inherit;
+font-size: 13px;
 
-    background: white;
+transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 
-    color: #0f172a;
-
-    font-family: inherit;
-
-    font-size: 13px;
-
-    transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
 }
 
 .auth-field input:focus {
-    border-color: #4f46e5;
+border-color: #4f46e5;
 
-    box-shadow:
-        0 0 0 3px
-        rgba(79, 70, 229, 0.10);
+box-shadow:
+    0 0 0 3px
+    rgba(79, 70, 229, 0.10);
+
 }
 
-
 /* =====================================================
-   PASSWORD
+PASSWORD
 ===================================================== */
 
 .password-row {
-    position: relative;
+position: relative;
 }
 
 .password-row input {
-    padding-right: 50px;
+padding-right: 50px;
 }
 
 .password-toggle {
-    position: absolute;
+position: absolute;
 
-    right: 7px;
-    top: 7px;
+right: 7px;
+top: 7px;
 
-    width: 34px;
-    height: 34px;
+width: 34px;
+height: 34px;
 
-    border: none;
+border: none;
 
-    background: transparent;
+background: transparent;
 
-    border-radius: 8px;
+border-radius: 8px;
 
-    cursor: pointer;
+cursor: pointer;
 
-    color: #64748b;
+color: #64748b;
 
-    font-size: 15px;
+font-size: 15px;
+
 }
 
 .password-toggle:hover {
-    background: #f1f5f9;
+background: #f1f5f9;
 }
 
-
 /* =====================================================
-   FORGOT PASSWORD
+FORGOT PASSWORD
 ===================================================== */
 
 .forgot-link {
-    align-self: flex-end;
+align-self: flex-end;
 
-    margin-top: -5px;
+margin-top: -5px;
 
-    color: #4f46e5;
+color: #4f46e5;
 
-    font-size: 12px;
+font-size: 12px;
+font-weight: 700;
 
-    font-weight: 700;
+text-decoration: none;
 
-    text-decoration: none;
 }
 
 .forgot-link:hover {
-    text-decoration: underline;
+text-decoration: underline;
 }
 
-
 /* =====================================================
-   MAIN BUTTON
+MAIN BUTTON
 ===================================================== */
 
 .auth-button {
-    width: 100%;
+width: 100%;
+height: 47px;
 
-    height: 47px;
+border: none;
+border-radius: 10px;
 
-    border: none;
+background: #4f46e5;
+color: white;
 
-    border-radius: 10px;
+font-family: inherit;
 
-    background: #4f46e5;
+font-size: 13px;
+font-weight: 750;
 
-    color: white;
+cursor: pointer;
 
-    font-family: inherit;
+transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 
-    font-size: 13px;
-
-    font-weight: 750;
-
-    cursor: pointer;
-
-    transition:
-        background 0.2s ease,
-        transform 0.2s ease;
 }
 
 .auth-button:hover {
-    background: #4338ca;
-
-    transform: translateY(-1px);
+background: #4338ca;
+transform: translateY(-1px);
 }
 
 .auth-button:disabled {
-    opacity: 0.65;
-
-    cursor: not-allowed;
-
-    transform: none;
+opacity: 0.65;
+cursor: not-allowed;
+transform: none;
 }
 
-
 /* =====================================================
-   DIVIDER
+DIVIDER
 ===================================================== */
 
 .divider {
-    display: flex;
+display: flex;
+align-items: center;
 
-    align-items: center;
+gap: 12px;
 
-    gap: 12px;
+margin: 22px 0;
 
-    margin: 22px 0;
+color: #94a3b8;
 
-    color: #94a3b8;
+font-size: 10px;
+font-weight: 700;
 
-    font-size: 10px;
-
-    font-weight: 700;
 }
 
 .divider::before,
 .divider::after {
-    content: "";
+content: "";
 
-    flex: 1;
+flex: 1;
 
-    height: 1px;
+height: 1px;
 
-    background: #e2e8f0;
+background: #e2e8f0;
+
 }
 
-
 /* =====================================================
-   GOOGLE
+GOOGLE
 ===================================================== */
 
 .google-button {
-    width: 100%;
+width: 100%;
+height: 47px;
 
-    height: 47px;
+border: 1px solid #cbd5e1;
+border-radius: 10px;
 
-    border: 1px solid #cbd5e1;
+background: white;
+color: #334155;
 
-    border-radius: 10px;
+font-family: inherit;
 
-    background: white;
+font-size: 13px;
+font-weight: 700;
 
-    color: #334155;
+cursor: pointer;
 
-    font-family: inherit;
+display: flex;
+align-items: center;
+justify-content: center;
 
-    font-size: 13px;
+gap: 10px;
 
-    font-weight: 700;
+transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 
-    cursor: pointer;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 10px;
-
-    transition:
-        background 0.2s ease,
-        border-color 0.2s ease;
 }
 
 .google-button:hover {
-    background: #f8fafc;
-
-    border-color: #94a3b8;
+background: #f8fafc;
+border-color: #94a3b8;
 }
 
 .google-icon {
-    font-size: 17px;
-
-    font-weight: 800;
+font-size: 17px;
+font-weight: 800;
 }
 
-
 /* =====================================================
-   MESSAGE
+MESSAGE
 ===================================================== */
 
 .auth-message {
-    display: none;
+display: none;
 
-    padding: 11px 12px;
+padding: 11px 12px;
 
-    margin-bottom: 15px;
+margin-bottom: 15px;
 
-    border-radius: 9px;
+border-radius: 9px;
 
-    font-size: 12px;
+font-size: 12px;
+line-height: 1.5;
 
-    line-height: 1.5;
 }
 
 .auth-message.show {
-    display: block;
+display: block;
 }
 
 .auth-message.error {
-    color: #b91c1c;
+color: #b91c1c;
 
-    background: #fef2f2;
+background: #fef2f2;
 
-    border: 1px solid #fecaca;
+border: 1px solid #fecaca;
+
 }
 
 .auth-message.success {
-    color: #15803d;
+color: #15803d;
 
-    background: #f0fdf4;
+background: #f0fdf4;
 
-    border: 1px solid #bbf7d0;
+border: 1px solid #bbf7d0;
+
 }
 
-
 /* =====================================================
-   FOOTER
+FOOTER
 ===================================================== */
 
 .auth-footer {
-    margin-top: 22px;
+margin-top: 22px;
 
-    text-align: center;
+text-align: center;
 
-    color: #64748b;
+color: #64748b;
 
-    font-size: 12px;
+font-size: 12px;
+line-height: 1.6;
 
-    line-height: 1.6;
 }
 
 .auth-footer a {
-    color: #4f46e5;
+color: #4f46e5;
 
-    font-weight: 700;
+font-weight: 700;
 
-    text-decoration: none;
+text-decoration: none;
+
 }
 
 .auth-footer a:hover {
-    text-decoration: underline;
+text-decoration: underline;
 }
 
-
 /* =====================================================
-   RESET EMAIL
+RESET EMAIL
 ===================================================== */
 
 #resetEmail {
-    overflow-wrap: anywhere;
+overflow-wrap: anywhere;
 }
 
-
 /* =====================================================
-   MOBILE
+MOBILE
 ===================================================== */
 
 @media (max-width: 500px) {
 
-    .auth-page {
-        padding: 12px;
-    }
+.auth-page {
+    padding: 12px;
+}
 
-    .auth-card {
-        padding: 27px 20px;
+.auth-card {
+    padding: 27px 20px;
+    border-radius: 18px;
+}
 
-        border-radius: 18px;
-    }
+.auth-card h1 {
+    font-size: 24px;
+}
 
-    .auth-card h1 {
-        font-size: 24px;
-    }
+.auth-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 13px;
+}
 
-    .auth-logo {
-        width: 48px;
-        height: 48px;
+}
 
-        font-size: 21px;
+/* =====================================================
+VERY SMALL PHONES
+===================================================== */
 
-        border-radius: 13px;
-    }
+@media (max-width: 360px) {
+
+.auth-page {
+    padding: 8px;
+}
+
+.auth-card {
+    padding: 23px 16px;
+}
+
+.auth-card h1 {
+    font-size: 22px;
+}
+
+.auth-subtitle {
+    font-size: 12px;
+}
+
+.auth-logo {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+}
+
+}
+
+/* =====================================================
+TOUCH DEVICES
+===================================================== */
+
+@media (hover: none) and (pointer: coarse) {
+
+.auth-button,
+.google-button,
+.password-toggle,
+.forgot-link,
+.auth-footer a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+}
+
+/* =====================================================
+REDUCE MOTION
+===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+*,
+*::before,
+*::after {
+    scroll-behavior: auto !important;
+
+    transition-duration:
+        0.01ms !important;
+
+    animation-duration:
+        0.01ms !important;
+}
+
 }
