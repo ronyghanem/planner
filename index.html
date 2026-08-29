@@ -1,751 +1,625 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpeg" href="img/image1.jpg">
+    <title>My Planner</title>
 
-```
-<meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<title>My Planner</title>
-
-<link
-    rel="stylesheet"
-    href="style.css"
->
-
-<!-- =====================================================
-     AUTH CHECKING
-     Hide the application BEFORE the page is displayed.
-====================================================== -->
-
-<style>
-    html.auth-checking body {
-        visibility: hidden;
-        opacity: 0;
-    }
-
-    html.auth-allowed body {
-        visibility: visible;
-        opacity: 1;
-    }
-
-    html.auth-checking {
-        background: #f8fafc;
-    }
-
-    html.auth-allowed {
-        background: #f8fafc;
-    }
-</style>
-
-<script>
-    /*
-     * Firebase needs a moment to determine whether
-     * the user is authenticated.
-     *
-     * Keep the whole page invisible during that check.
-     */
-    document.documentElement.classList.add("auth-checking");
-</script>
-```
-
+    
 </head>
 
 <body>
 
-<div
-    class="app"
-    id="plannerApp"
-    style="display: none;"
->
-
-```
-<!-- HEADER -->
-<header class="header">
-
-    <div class="header-left">
-
-        <div class="logo">
-
-            <img
-                src="img/image1.jpg"
-                alt="My Planner Logo"
-            >
-
-        </div>
-
-        <div class="header-info">
-
-            <p class="eyebrow">
-                PERSONAL ORGANIZER
-            </p>
-
-            <h1>
-                My Planner
-            </h1>
-
-            <p class="subtitle">
-                Manage your meetings, interviews and notes.
-            </p>
-
-        </div>
-
+    <!-- LOADING -->
+    <div id="appLoading" class="app-loading">
+        <div class="loading-spinner"></div>
+        <p>Loading your planner...</p>
     </div>
 
+    <!-- MAIN APP -->
+    <div id="plannerApp" class="app">
 
-    <!-- USER AREA -->
-    <div class="user-area">
+        <!-- HEADER -->
+        <header class="header">
 
-        <div class="user-info">
+            <div class="header-left">
 
-            <div class="user-avatar">
-                👤
-            </div>
+                <div class="logo">
+                    <img src="img/image1.jpg" alt="My Planner Logo">
+                </div>
 
-            <div class="user-details">
+                <div class="header-info">
+                    <p class="eyebrow">PERSONAL ORGANIZER</p>
 
-                <span class="signed-label">
-                    Signed in as
-                </span>
+                    <h1>My Planner</h1>
 
-                <strong id="userEmail">
-                    Loading...
-                </strong>
+                    <p class="subtitle">
+                        Manage your meetings, interviews and notes.
+                    </p>
+                </div>
 
             </div>
 
-        </div>
+            <!-- USER AREA -->
+            <div class="user-area">
 
+                <div class="user-info">
 
-        <button
-            type="button"
-            id="logoutButton"
-            class="logout-button"
-        >
+                    <div class="user-avatar">
+                        👤
+                    </div>
 
-            <span>
-                ↪
-            </span>
+                    <div class="user-details">
 
-            <span>
-                Logout
-            </span>
+                        <span class="signed-label">
+                            Signed in as
+                        </span>
 
-        </button>
+                        <strong id="userEmail">
+                            Loading...
+                        </strong>
 
-    </div>
-
-</header>
-
-
-<!-- =====================================================
-     ACTION CARDS
-====================================================== -->
-
-<section class="actions">
-
-    <button
-        class="action-card"
-        id="todayAction"
-        type="button"
-    >
-
-        <div class="action-icon today-icon">
-            📋
-        </div>
-
-        <div class="action-text">
-
-            <strong>
-                Today's Plans
-            </strong>
-
-            <span>
-                Meetings & interviews today
-            </span>
-
-        </div>
-
-        <div
-            class="action-count"
-            id="todayCount"
-        >
-            0
-        </div>
-
-    </button>
-
-
-    <button
-        class="action-card"
-        id="addMeetingAction"
-        type="button"
-    >
-
-        <div class="action-icon meeting-icon">
-            📅
-        </div>
-
-        <div class="action-text">
-
-            <strong>
-                Add Meeting
-            </strong>
-
-            <span>
-                Create a new meeting
-            </span>
-
-        </div>
-
-        <div
-            class="action-count"
-            id="meetingCount"
-        >
-            0
-        </div>
-
-    </button>
-
-
-    <button
-        class="action-card"
-        id="addInterviewAction"
-        type="button"
-    >
-
-        <div class="action-icon interview-icon">
-            💼
-        </div>
-
-        <div class="action-text">
-
-            <strong>
-                Add Interview
-            </strong>
-
-            <span>
-                Schedule an interview
-            </span>
-
-        </div>
-
-        <div
-            class="action-count"
-            id="interviewCount"
-        >
-            0
-        </div>
-
-    </button>
-
-
-    <button
-        class="action-card"
-        id="addNoteAction"
-        type="button"
-    >
-
-        <div class="action-icon note-icon">
-            📝
-        </div>
-
-        <div class="action-text">
-
-            <strong>
-                Add Note
-            </strong>
-
-            <span>
-                Save an important note
-            </span>
-
-        </div>
-
-        <div
-            class="action-count"
-            id="noteCount"
-        >
-            0
-        </div>
-
-    </button>
-
-</section>
-
-
-<!-- =====================================================
-     VIEW NAVIGATION
-====================================================== -->
-
-<section class="view-navigation">
-
-    <div class="view-label">
-        View
-    </div>
-
-    <div class="view-buttons">
-
-        <button
-            class="view-btn active"
-            data-section="today"
-            type="button"
-        >
-            📋 Today's Plans
-        </button>
-
-        <button
-            class="view-btn"
-            data-section="meetings"
-            type="button"
-        >
-            📅 View Meetings
-        </button>
-
-        <button
-            class="view-btn"
-            data-section="interviews"
-            type="button"
-        >
-            💼 View Interviews
-        </button>
-
-        <button
-            class="view-btn"
-            data-section="notes"
-            type="button"
-        >
-            📝 View Notes
-        </button>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     TODAY
-====================================================== -->
-
-<section
-    id="todaySection"
-    class="planner-section"
->
-
-    <div class="section-header">
-
-        <div>
-
-            <div class="section-title-row">
-
-                <h2>
-                    Today's Plans
-                </h2>
-
-                <span
-                    class="section-badge"
-                    id="todayBadge"
-                >
-                    0
-                </span>
-
-            </div>
-
-            <p>
-                Your meetings and interviews scheduled for today.
-            </p>
-
-        </div>
-
-    </div>
-
-
-    <div
-        id="todayList"
-        class="items-list"
-    ></div>
-
-
-    <div
-        id="emptyToday"
-        class="empty-state"
-    >
-
-        <div class="empty-icon">
-            📋
-        </div>
-
-        <h3>
-            No plans for today
-        </h3>
-
-        <p>
-            Your meetings and interviews for today will appear here.
-        </p>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     MEETINGS
-====================================================== -->
-
-<section
-    id="meetingsSection"
-    class="planner-section hidden-section"
->
-
-    <div class="section-header">
-
-        <div>
-
-            <div class="section-title-row">
-
-                <h2>
-                    View Meetings
-                </h2>
-
-                <span
-                    class="section-badge"
-                    id="meetingsBadge"
-                >
-                    0
-                </span>
-
-            </div>
-
-            <p>
-                All your meetings.
-            </p>
-
-        </div>
-
-    </div>
-
-
-    <div
-        id="meetingsList"
-        class="items-list"
-    ></div>
-
-
-    <div
-        id="emptyMeetings"
-        class="empty-state"
-    >
-
-        <div class="empty-icon">
-            📅
-        </div>
-
-        <h3>
-            No meetings yet
-        </h3>
-
-        <p>
-            Click Add Meeting above to create one.
-        </p>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     INTERVIEWS
-====================================================== -->
-
-<section
-    id="interviewsSection"
-    class="planner-section hidden-section"
->
-
-    <div class="section-header">
-
-        <div>
-
-            <div class="section-title-row">
-
-                <h2>
-                    View Interviews
-                </h2>
-
-                <span
-                    class="section-badge"
-                    id="interviewsBadge"
-                >
-                    0
-                </span>
-
-            </div>
-
-            <p>
-                All your job interviews.
-            </p>
-
-        </div>
-
-    </div>
-
-
-    <div
-        id="interviewsList"
-        class="items-list"
-    ></div>
-
-
-    <div
-        id="emptyInterviews"
-        class="empty-state"
-    >
-
-        <div class="empty-icon">
-            💼
-        </div>
-
-        <h3>
-            No interviews yet
-        </h3>
-
-        <p>
-            Click Add Interview above to create one.
-        </p>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     NOTES
-====================================================== -->
-
-<section
-    id="notesSection"
-    class="planner-section hidden-section"
->
-
-    <div class="section-header">
-
-        <div>
-
-            <div class="section-title-row">
-
-                <h2>
-                    View Notes
-                </h2>
-
-                <span
-                    class="section-badge"
-                    id="notesBadge"
-                >
-                    0
-                </span>
-
-            </div>
-
-            <p>
-                All your saved notes.
-            </p>
-
-        </div>
-
-    </div>
-
-
-    <div
-        id="notesList"
-        class="items-list"
-    ></div>
-
-
-    <div
-        id="emptyNotes"
-        class="empty-state"
-    >
-
-        <div class="empty-icon">
-            📝
-        </div>
-
-        <h3>
-            No notes yet
-        </h3>
-
-        <p>
-            Click Add Note above to create one.
-        </p>
-
-    </div>
-
-</section>
-```
-
-</div>
-
-<!-- =====================================================
-     MODAL
-====================================================== -->
-
-<div
-    class="modal-overlay"
-    id="modal"
->
-
-```
-<div class="modal">
-
-    <button
-        type="button"
-        class="close-btn"
-        id="closeModalBtn"
-    >
-        ×
-    </button>
-
-
-    <div class="modal-header">
-
-        <div
-            class="modal-icon"
-            id="modalIcon"
-        >
-            📅
-        </div>
-
-        <div>
-
-            <h2 id="modalTitle">
-                Add Meeting
-            </h2>
-
-            <p id="modalDescription">
-                Add a new meeting.
-            </p>
-
-        </div>
-
-    </div>
-
-
-    <form id="itemForm">
-
-        <div class="form-group">
-
-            <label for="title">
-                Title
-
-                <span class="optional">
-                    Optional
-                </span>
-
-            </label>
-
-            <input
-                type="text"
-                id="title"
-                placeholder="e.g. Meeting with ABC Company"
-            >
-
-        </div>
-
-
-        <div id="dateTimeFields">
-
-            <div class="form-row">
-
-                <div class="form-group">
-
-                    <label for="date">
-                        Date
-                    </label>
-
-                    <input
-                        type="date"
-                        id="date"
-                    >
+                    </div>
 
                 </div>
 
+                <button
+                    type="button"
+                    id="logoutButton"
+                    class="logout-button"
+                >
+                    <span>↪</span>
+                    <span>Logout</span>
+                </button>
 
-                <div class="form-group">
+            </div>
 
-                    <label for="time">
-                        Time
-                    </label>
+        </header>
 
-                    <input
-                        type="time"
-                        id="time"
-                    >
+
+        <!-- ACTION CARDS -->
+        <section class="actions">
+
+            <button
+                class="action-card"
+                id="todayAction"
+                type="button"
+            >
+                <div class="action-icon today-icon">
+                    📋
+                </div>
+
+                <div class="action-text">
+                    <strong>Today's Plans</strong>
+
+                    <span>
+                        Meetings & interviews today
+                    </span>
+                </div>
+
+                <div
+                    class="action-count"
+                    id="todayCount"
+                >
+                    0
+                </div>
+            </button>
+
+
+            <button
+                class="action-card"
+                id="addMeetingAction"
+                type="button"
+            >
+                <div class="action-icon meeting-icon">
+                    📅
+                </div>
+
+                <div class="action-text">
+                    <strong>Add Meeting</strong>
+
+                    <span>
+                        Create a new meeting
+                    </span>
+                </div>
+
+                <div
+                    class="action-count"
+                    id="meetingCount"
+                >
+                    0
+                </div>
+            </button>
+
+
+            <button
+                class="action-card"
+                id="addInterviewAction"
+                type="button"
+            >
+                <div class="action-icon interview-icon">
+                    💼
+                </div>
+
+                <div class="action-text">
+                    <strong>Add Interview</strong>
+
+                    <span>
+                        Schedule an interview
+                    </span>
+                </div>
+
+                <div
+                    class="action-count"
+                    id="interviewCount"
+                >
+                    0
+                </div>
+            </button>
+
+
+            <button
+                class="action-card"
+                id="addNoteAction"
+                type="button"
+            >
+                <div class="action-icon note-icon">
+                    📝
+                </div>
+
+                <div class="action-text">
+                    <strong>Add Note</strong>
+
+                    <span>
+                        Save an important note
+                    </span>
+                </div>
+
+                <div
+                    class="action-count"
+                    id="noteCount"
+                >
+                    0
+                </div>
+            </button>
+
+        </section>
+
+
+        <!-- VIEW NAVIGATION -->
+        <section class="view-navigation">
+
+            <div class="view-label">
+                View
+            </div>
+
+            <div class="view-buttons">
+
+                <button
+                    class="view-btn active"
+                    data-section="today"
+                    type="button"
+                >
+                    📋 Today's Plans
+                </button>
+
+                <button
+                    class="view-btn"
+                    data-section="meetings"
+                    type="button"
+                >
+                    📅 View Meetings
+                </button>
+
+                <button
+                    class="view-btn"
+                    data-section="interviews"
+                    type="button"
+                >
+                    💼 View Interviews
+                </button>
+
+                <button
+                    class="view-btn"
+                    data-section="notes"
+                    type="button"
+                >
+                    📝 View Notes
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- TODAY -->
+        <section
+            id="todaySection"
+            class="planner-section"
+        >
+
+            <div class="section-header">
+
+                <div>
+
+                    <div class="section-title-row">
+
+                        <h2>Today's Plans</h2>
+
+                        <span
+                            class="section-badge"
+                            id="todayBadge"
+                        >
+                            0
+                        </span>
+
+                    </div>
+
+                    <p>
+                        Your meetings and interviews scheduled for today.
+                    </p>
 
                 </div>
 
             </div>
 
-        </div>
+            <div
+                id="todayList"
+                class="items-list"
+            ></div>
+
+            <div
+                id="emptyToday"
+                class="empty-state"
+            >
+                <div class="empty-icon">
+                    📋
+                </div>
+
+                <h3>
+                    No plans for today
+                </h3>
+
+                <p>
+                    Your meetings and interviews for today will appear here.
+                </p>
+            </div>
+
+        </section>
 
 
-        <div id="extraFields"></div>
+        <!-- MEETINGS -->
+        <section
+            id="meetingsSection"
+            class="planner-section hidden-section"
+        >
+
+            <div class="section-header">
+
+                <div>
+
+                    <div class="section-title-row">
+
+                        <h2>
+                            View Meetings
+                        </h2>
+
+                        <span
+                            class="section-badge"
+                            id="meetingsBadge"
+                        >
+                            0
+                        </span>
+
+                    </div>
+
+                    <p>
+                        All your meetings.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div
+                id="meetingsList"
+                class="items-list"
+            ></div>
+
+            <div
+                id="emptyMeetings"
+                class="empty-state"
+            >
+
+                <div class="empty-icon">
+                    📅
+                </div>
+
+                <h3>
+                    No meetings yet
+                </h3>
+
+                <p>
+                    Click Add Meeting above to create one.
+                </p>
+
+            </div>
+
+        </section>
 
 
-        <div class="form-group">
+        <!-- INTERVIEWS -->
+        <section
+            id="interviewsSection"
+            class="planner-section hidden-section"
+        >
 
-            <label for="description">
-                Notes
-            </label>
+            <div class="section-header">
 
-            <textarea
-                id="description"
-                placeholder="Add some details..."
-            ></textarea>
+                <div>
 
-        </div>
+                    <div class="section-title-row">
+
+                        <h2>
+                            View Interviews
+                        </h2>
+
+                        <span
+                            class="section-badge"
+                            id="interviewsBadge"
+                        >
+                            0
+                        </span>
+
+                    </div>
+
+                    <p>
+                        All your job interviews.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div
+                id="interviewsList"
+                class="items-list"
+            ></div>
+
+            <div
+                id="emptyInterviews"
+                class="empty-state"
+            >
+
+                <div class="empty-icon">
+                    💼
+                </div>
+
+                <h3>
+                    No interviews yet
+                </h3>
+
+                <p>
+                    Click Add Interview above to create one.
+                </p>
+
+            </div>
+
+        </section>
 
 
-        <div class="modal-actions">
+        <!-- NOTES -->
+        <section
+            id="notesSection"
+            class="planner-section hidden-section"
+        >
+
+            <div class="section-header">
+
+                <div>
+
+                    <div class="section-title-row">
+
+                        <h2>
+                            View Notes
+                        </h2>
+
+                        <span
+                            class="section-badge"
+                            id="notesBadge"
+                        >
+                            0
+                        </span>
+
+                    </div>
+
+                    <p>
+                        All your saved notes.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div
+                id="notesList"
+                class="items-list"
+            ></div>
+
+            <div
+                id="emptyNotes"
+                class="empty-state"
+            >
+
+                <div class="empty-icon">
+                    📝
+                </div>
+
+                <h3>
+                    No notes yet
+                </h3>
+
+                <p>
+                    Click Add Note above to create one.
+                </p>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+    <!-- MODAL -->
+    <div
+        class="modal-overlay"
+        id="modal"
+    >
+
+        <div class="modal">
 
             <button
                 type="button"
-                class="cancel-btn"
-                id="cancelBtn"
+                class="close-btn"
+                id="closeModalBtn"
             >
-                Cancel
+                ×
             </button>
 
 
-            <button
-                type="submit"
-                class="save-btn"
-            >
-                Save
-            </button>
+            <div class="modal-header">
+
+                <div
+                    class="modal-icon"
+                    id="modalIcon"
+                >
+                    📅
+                </div>
+
+                <div>
+
+                    <h2 id="modalTitle">
+                        Add Meeting
+                    </h2>
+
+                    <p id="modalDescription">
+                        Add a new meeting.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <form id="itemForm">
+
+                <div class="form-group">
+
+                    <label for="title">
+                        Title
+
+                        <span class="optional">
+                            Optional
+                        </span>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="title"
+                        placeholder="e.g. Meeting with ABC Company"
+                    >
+
+                </div>
+
+
+                <div id="dateTimeFields">
+
+                    <div class="form-row">
+
+                        <div class="form-group">
+
+                            <label for="date">
+                                Date
+                            </label>
+
+                            <input
+                                type="date"
+                                id="date"
+                            >
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="time">
+                                Time
+                            </label>
+
+                            <input
+                                type="time"
+                                id="time"
+                            >
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div id="extraFields"></div>
+
+
+                <div class="form-group">
+
+                    <label for="description">
+                        Notes
+                    </label>
+
+                    <textarea
+                        id="description"
+                        placeholder="Add some details..."
+                    ></textarea>
+
+                </div>
+
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        class="cancel-btn"
+                        id="cancelBtn"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="save-btn"
+                    >
+                        Save
+                    </button>
+
+                </div>
+
+            </form>
 
         </div>
 
-    </form>
+    </div>
 
-</div>
-```
 
-</div>
-
-<!-- =====================================================
-     FIREBASE / APPLICATION
-====================================================== -->
-
-<script
-    type="module"
-    src="script.js"
-></script>
+    <!-- FIREBASE / APPLICATION -->
+    <script
+        type="module"
+        src="script.js"
+    ></script>
 
 </body>
 

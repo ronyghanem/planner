@@ -20,6 +20,7 @@ import {
     db
 } from "./firebase-config.js";
 
+
 // =====================================================
 // GLOBAL STATE
 // =====================================================
@@ -30,147 +31,160 @@ let currentType = "meeting";
 let editingId = null;
 let unsubscribeItems = null;
 
+
 // =====================================================
-// SAFE DOM HELPERS
+// DOM ELEMENTS
+// =====================================================
+
+let modal;
+let form;
+let titleInput;
+let dateInput;
+let timeInput;
+let descriptionInput;
+let dateTimeFields;
+let extraFields;
+let plannerApp;
+let appLoading;
+
+
+// =====================================================
+// DOM HELPER
 // =====================================================
 
 const $ = (id) => document.getElementById(id);
 
-const addClick = (element, callback) => {
-    if (element) {
-        element.addEventListener("click", callback);
-    }
-};
-
-const setText = (element, value) => {
-    if (element) {
-        element.textContent = value;
-    }
-};
-
-const setDisplay = (element, value) => {
-    if (element) {
-        element.style.display = value;
-    }
-};
 
 // =====================================================
-// ELEMENTS
-// =====================================================
-
-let modal = null;
-let form = null;
-let titleInput = null;
-let dateInput = null;
-let timeInput = null;
-let descriptionInput = null;
-let dateTimeFields = null;
-let extraFields = null;
-let plannerApp = null;
-
-// =====================================================
-// INITIALIZE
+// START APPLICATION
 // =====================================================
 
 document.addEventListener("DOMContentLoaded", () => {
 
+    console.log("=================================");
+    console.log("MY PLANNER STARTING");
+    console.log("=================================");
+
+    // Get DOM elements
     modal = $("modal");
     form = $("itemForm");
-
     titleInput = $("title");
     dateInput = $("date");
     timeInput = $("time");
     descriptionInput = $("description");
-
     dateTimeFields = $("dateTimeFields");
     extraFields = $("extraFields");
-
     plannerApp = $("plannerApp");
+    appLoading = $("appLoading");
 
-    /*
-     * Hide planner immediately.
-     *
-     * Firebase will decide whether the user
-     * is authenticated.
-     */
-    if (plannerApp) {
-        plannerApp.style.display = "none";
-    }
 
-    setupEventListeners();
-    setupLogout();
-});
+    console.log("plannerApp:", plannerApp);
+    console.log("appLoading:", appLoading);
+    console.log("form:", form);
 
-// =====================================================
-// AUTHENTICATION
-// =====================================================
 
-onAuthStateChanged(auth, (user) => {
-
-    console.log(
-        "Firebase auth state:",
-        user ? `SIGNED IN (${user.email})` : "NOT SIGNED IN"
-    );
-
-    // =================================================
-    // NOT LOGGED IN
-    // =================================================
-
-    if (!user) {
-
-        currentUser = null;
-
-        // Stop Firestore listener
-        if (unsubscribeItems) {
-            unsubscribeItems();
-            unsubscribeItems = null;
-        }
-
-        // Hide planner
-        if (plannerApp) {
-            plannerApp.style.display = "none";
-        }
-
-        console.log("Redirecting to login.html...");
-
-        /*
-         * IMPORTANT
-         *
-         * This sends unauthenticated users directly
-         * to the login page.
-         */
-        window.location.replace("login.html");
-
+    // If plannerApp does not exist, stop
+    if (!plannerApp) {
+        console.error(
+            "ERROR: #plannerApp was not found in HTML."
+        );
         return;
     }
 
-    // =================================================
-    // LOGGED IN
-    // =================================================
 
-    currentUser = user;
+    // Hide planner while checking authentication
+    plannerApp.style.display = "none";
 
-    console.log(
-        "User authenticated:",
-        user.email
-    );
-
-    // Show email
-    const emailElement = $("userEmail");
-
-    if (emailElement) {
-        emailElement.textContent =
-            user.email || "User";
+    if (appLoading) {
+        appLoading.style.display = "flex";
     }
 
-    // Show planner
-    if (plannerApp) {
+
+    // Setup buttons
+    setupEventListeners();
+    setupLogout();
+
+
+    // =================================================
+    // START FIREBASE AUTH CHECK ONLY AFTER DOM EXISTS
+    // =================================================
+
+    onAuthStateChanged(auth, async (user) => {
+
+        console.log("---------------------------------");
+        console.log("Firebase Auth State Changed");
+        console.log("User:", user);
+        console.log("---------------------------------");
+
+
+        // =============================================
+        // NOT LOGGED IN
+        // =============================================
+
+        if (!user) {
+
+            console.log("❌ No user logged in");
+
+            currentUser = null;
+
+            if (unsubscribeItems) {
+                unsubscribeItems();
+                unsubscribeItems = null;
+            }
+
+
+            // Redirect to login
+            window.location.replace("login.html");
+
+            return;
+        }
+
+
+        // =============================================
+        // LOGGED IN
+        // =============================================
+
+        console.log("✅ USER IS LOGGED IN");
+        console.log("Email:", user.email);
+        console.log("UID:", user.uid);
+
+
+        currentUser = user;
+
+
+        // Show email
+        const emailElement = $("userEmail");
+
+        if (emailElement) {
+            emailElement.textContent =
+                user.email || "User";
+        }
+
+
+        // =============================================
+        // SHOW PLANNER
+        // =============================================
+
+        if (appLoading) {
+            appLoading.style.display = "none";
+        }
+
         plannerApp.style.display = "block";
-    }
 
-    // Start Firestore
-    startRealtimeItemsListener();
+
+        console.log("✅ Planner is now visible");
+
+
+        // =============================================
+        // START FIRESTORE
+        // =============================================
+
+        startRealtimeItemsListener();
+
+    });
+
 });
+
 
 // =====================================================
 // FIRESTORE COLLECTION
@@ -190,36 +204,53 @@ function getItemsCollection() {
     );
 }
 
+
 // =====================================================
-// REAL-TIME FIRESTORE LISTENER
+// FIRESTORE LISTENER
 // =====================================================
 
 function startRealtimeItemsListener() {
 
     if (!currentUser) {
+        console.warn(
+            "Cannot start Firestore listener: no user."
+        );
+
         return;
     }
+
 
     if (unsubscribeItems) {
         unsubscribeItems();
         unsubscribeItems = null;
     }
 
+
     const itemsCollection =
         getItemsCollection();
+
 
     if (!itemsCollection) {
         return;
     }
+
 
     const itemsQuery = query(
         itemsCollection,
         orderBy("createdAt", "desc")
     );
 
+
     unsubscribeItems = onSnapshot(
         itemsQuery,
+
         (snapshot) => {
+
+            console.log(
+                "Firestore items:",
+                snapshot.size
+            );
+
 
             items = snapshot.docs.map(
                 (itemDocument) => ({
@@ -227,6 +258,7 @@ function startRealtimeItemsListener() {
                     ...itemDocument.data()
                 })
             );
+
 
             renderAll();
         },
@@ -238,24 +270,14 @@ function startRealtimeItemsListener() {
                 error
             );
 
-            if (
-                error?.code ===
-                "failed-precondition"
-            ) {
 
-                alert(
-                    "Firestore needs an index for this query. Check the Firebase Console."
-                );
-
-            } else {
-
-                alert(
-                    "Unable to load your planner data. Please check your Firebase Firestore setup."
-                );
-            }
+            alert(
+                "Unable to load planner data. Check Firebase Firestore rules and configuration."
+            );
         }
     );
 }
+
 
 // =====================================================
 // EVENT LISTENERS
@@ -264,28 +286,51 @@ function startRealtimeItemsListener() {
 function setupEventListeners() {
 
     // TODAY
-    addClick(
-        $("todayAction"),
-        () => showSection("today")
-    );
+    const todayAction = $("todayAction");
+
+    if (todayAction) {
+        todayAction.addEventListener(
+            "click",
+            () => showSection("today")
+        );
+    }
+
 
     // ADD MEETING
-    addClick(
-        $("addMeetingAction"),
-        () => openModal("meeting")
-    );
+    const addMeetingAction =
+        $("addMeetingAction");
+
+    if (addMeetingAction) {
+        addMeetingAction.addEventListener(
+            "click",
+            () => openModal("meeting")
+        );
+    }
+
 
     // ADD INTERVIEW
-    addClick(
-        $("addInterviewAction"),
-        () => openModal("interview")
-    );
+    const addInterviewAction =
+        $("addInterviewAction");
+
+    if (addInterviewAction) {
+        addInterviewAction.addEventListener(
+            "click",
+            () => openModal("interview")
+        );
+    }
+
 
     // ADD NOTE
-    addClick(
-        $("addNoteAction"),
-        () => openModal("note")
-    );
+    const addNoteAction =
+        $("addNoteAction");
+
+    if (addNoteAction) {
+        addNoteAction.addEventListener(
+            "click",
+            () => openModal("note")
+        );
+    }
+
 
     // VIEW BUTTONS
     document
@@ -304,27 +349,48 @@ function setupEventListeners() {
                     }
                 }
             );
+
         });
+
 
     // FORM
     if (form) {
+
         form.addEventListener(
             "submit",
             handleFormSubmit
         );
+
     }
 
+
     // CLOSE MODAL
-    addClick(
-        $("closeModalBtn"),
-        closeModal
-    );
+    const closeModalBtn =
+        $("closeModalBtn");
+
+    if (closeModalBtn) {
+
+        closeModalBtn.addEventListener(
+            "click",
+            closeModal
+        );
+
+    }
+
 
     // CANCEL
-    addClick(
-        $("cancelBtn"),
-        closeModal
-    );
+    const cancelBtn =
+        $("cancelBtn");
+
+    if (cancelBtn) {
+
+        cancelBtn.addEventListener(
+            "click",
+            closeModal
+        );
+
+    }
+
 
     // CLICK OUTSIDE MODAL
     if (modal) {
@@ -333,14 +399,15 @@ function setupEventListeners() {
             "click",
             (event) => {
 
-                if (
-                    event.target === modal
-                ) {
+                if (event.target === modal) {
                     closeModal();
                 }
+
             }
         );
+
     }
+
 
     // ESCAPE
     document.addEventListener(
@@ -351,16 +418,17 @@ function setupEventListeners() {
                 closeModal();
                 closeAllMenus();
             }
+
         }
     );
+
 
     // CLOSE MENUS
     document.addEventListener(
         "click",
         (event) => {
 
-            const target =
-                event.target;
+            const target = event.target;
 
             if (
                 target instanceof Element &&
@@ -368,9 +436,11 @@ function setupEventListeners() {
             ) {
                 closeAllMenus();
             }
+
         }
     );
 }
+
 
 // =====================================================
 // LOGOUT
@@ -381,9 +451,11 @@ function setupLogout() {
     const logoutButton =
         $("logoutButton");
 
+
     if (!logoutButton) {
         return;
     }
+
 
     logoutButton.addEventListener(
         "click",
@@ -394,17 +466,15 @@ function setupLogout() {
                     "Are you sure you want to logout?"
                 );
 
+
             if (!confirmed) {
                 return;
             }
 
+
             try {
 
                 await signOut(auth);
-
-                console.log(
-                    "Logged out successfully."
-                );
 
                 window.location.replace(
                     "login.html"
@@ -420,10 +490,13 @@ function setupLogout() {
                 alert(
                     "Unable to logout. Please try again."
                 );
+
             }
+
         }
     );
 }
+
 
 // =====================================================
 // SHOW SECTION
@@ -443,7 +516,9 @@ function showSection(section) {
 
         notes:
             $("notesSection")
+
     };
+
 
     document
         .querySelectorAll(
@@ -454,7 +529,9 @@ function showSection(section) {
             element.classList.add(
                 "hidden-section"
             );
+
         });
+
 
     document
         .querySelectorAll(".view-btn")
@@ -463,30 +540,38 @@ function showSection(section) {
             button.classList.remove(
                 "active"
             );
+
         });
+
 
     const selectedSection =
         sections[section];
+
 
     if (selectedSection) {
 
         selectedSection.classList.remove(
             "hidden-section"
         );
+
     }
+
 
     const activeButton =
         document.querySelector(
             `.view-btn[data-section="${section}"]`
         );
 
+
     if (activeButton) {
 
         activeButton.classList.add(
             "active"
         );
+
     }
 }
+
 
 // =====================================================
 // OPEN MODAL
@@ -495,22 +580,22 @@ function showSection(section) {
 function openModal(type, item = null) {
 
     if (!modal || !form) {
-
         console.error(
-            "Planner modal/form is missing from HTML."
+            "Modal or form missing."
         );
 
         return;
     }
 
+
     currentType = type;
 
     editingId =
-        item
-            ? item.id
-            : null;
+        item ? item.id : null;
+
 
     form.reset();
+
 
     const modalTitle =
         $("modalTitle");
@@ -521,44 +606,106 @@ function openModal(type, item = null) {
     const modalIcon =
         $("modalIcon");
 
-    // =================================================
+
+    // =============================================
     // MEETING
-    // =================================================
+    // =============================================
 
     if (type === "meeting") {
 
-        setText(
-            modalTitle,
+        modalTitle.textContent =
             item
                 ? "Edit Meeting"
-                : "Add Meeting"
-        );
+                : "Add Meeting";
 
-        setText(
-            modalDescription,
+
+        modalDescription.textContent =
             item
                 ? "Update your meeting details."
-                : "Add a new meeting."
-        );
+                : "Add a new meeting.";
 
-        setText(
-            modalIcon,
-            "📅"
-        );
 
-        setDisplay(
-            dateTimeFields,
-            "block"
-        );
+        modalIcon.textContent = "📅";
 
-        if (extraFields) {
 
-            extraFields.innerHTML = `
+        dateTimeFields.style.display =
+            "block";
+
+
+        extraFields.innerHTML = `
+
+            <div class="form-group">
+
+                <label for="location">
+                    Location
+                    <span class="optional">
+                        Optional
+                    </span>
+                </label>
+
+                <input
+                    type="text"
+                    id="location"
+                    placeholder="e.g. Beirut Office"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="meetingLink">
+                    Meeting Link
+                    <span class="optional">
+                        Optional
+                    </span>
+                </label>
+
+                <input
+                    type="url"
+                    id="meetingLink"
+                    placeholder="https://zoom.us/..."
+                >
+
+            </div>
+
+        `;
+    }
+
+
+    // =============================================
+    // INTERVIEW
+    // =============================================
+
+    else if (type === "interview") {
+
+        modalTitle.textContent =
+            item
+                ? "Edit Interview"
+                : "Add Interview";
+
+
+        modalDescription.textContent =
+            item
+                ? "Update your interview details."
+                : "Add a new job interview.";
+
+
+        modalIcon.textContent = "💼";
+
+
+        dateTimeFields.style.display =
+            "block";
+
+
+        extraFields.innerHTML = `
+
+            <div class="form-row">
 
                 <div class="form-group">
 
-                    <label for="location">
-                        Location
+                    <label for="company">
+                        Company
                         <span class="optional">
                             Optional
                         </span>
@@ -566,189 +713,109 @@ function openModal(type, item = null) {
 
                     <input
                         type="text"
-                        id="location"
-                        placeholder="e.g. Beirut Office"
+                        id="company"
+                        placeholder="Company name"
                     >
 
                 </div>
 
+
                 <div class="form-group">
 
-                    <label for="meetingLink">
-                        Meeting Link
+                    <label for="position">
+                        Position
                         <span class="optional">
                             Optional
                         </span>
                     </label>
 
                     <input
-                        type="url"
-                        id="meetingLink"
-                        placeholder="https://zoom.us/..."
+                        type="text"
+                        id="position"
+                        placeholder="Job title"
                     >
 
                 </div>
-            `;
-        }
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="meetingLink">
+                    Interview Link
+                    <span class="optional">
+                        Optional
+                    </span>
+                </label>
+
+                <input
+                    type="url"
+                    id="meetingLink"
+                    placeholder="https://zoom.us/..."
+                >
+
+            </div>
+
+        `;
     }
 
-    // =================================================
-    // INTERVIEW
-    // =================================================
 
-    else if (type === "interview") {
-
-        setText(
-            modalTitle,
-            item
-                ? "Edit Interview"
-                : "Add Interview"
-        );
-
-        setText(
-            modalDescription,
-            item
-                ? "Update your interview details."
-                : "Add a new job interview."
-        );
-
-        setText(
-            modalIcon,
-            "💼"
-        );
-
-        setDisplay(
-            dateTimeFields,
-            "block"
-        );
-
-        if (extraFields) {
-
-            extraFields.innerHTML = `
-
-                <div class="form-row">
-
-                    <div class="form-group">
-
-                        <label for="company">
-                            Company
-                            <span class="optional">
-                                Optional
-                            </span>
-                        </label>
-
-                        <input
-                            type="text"
-                            id="company"
-                            placeholder="Company name"
-                        >
-
-                    </div>
-
-                    <div class="form-group">
-
-                        <label for="position">
-                            Position
-                            <span class="optional">
-                                Optional
-                            </span>
-                        </label>
-
-                        <input
-                            type="text"
-                            id="position"
-                            placeholder="Job title"
-                        >
-
-                    </div>
-
-                </div>
-
-                <div class="form-group">
-
-                    <label for="meetingLink">
-                        Interview Link
-                        <span class="optional">
-                            Optional
-                        </span>
-                    </label>
-
-                    <input
-                        type="url"
-                        id="meetingLink"
-                        placeholder="https://zoom.us/..."
-                    >
-
-                </div>
-            `;
-        }
-    }
-
-    // =================================================
+    // =============================================
     // NOTE
-    // =================================================
+    // =============================================
 
     else {
 
-        setText(
-            modalTitle,
+        modalTitle.textContent =
             item
                 ? "Edit Note"
-                : "Add Note"
-        );
+                : "Add Note";
 
-        setText(
-            modalDescription,
+
+        modalDescription.textContent =
             item
                 ? "Update your note."
-                : "Save an important note."
-        );
+                : "Save an important note.";
 
-        setText(
-            modalIcon,
-            "📝"
-        );
 
-        setDisplay(
-            dateTimeFields,
-            "none"
-        );
+        modalIcon.textContent = "📝";
 
-        if (extraFields) {
-            extraFields.innerHTML = "";
-        }
+
+        dateTimeFields.style.display =
+            "none";
+
+
+        extraFields.innerHTML = "";
     }
 
-    // =================================================
+
+    // =============================================
     // LOAD EXISTING ITEM
-    // =================================================
+    // =============================================
 
     if (item) {
 
-        if (titleInput) {
-            titleInput.value =
-                item.title || "";
-        }
+        titleInput.value =
+            item.title || "";
 
-        if (descriptionInput) {
-            descriptionInput.value =
-                item.description || "";
-        }
+
+        descriptionInput.value =
+            item.description || "";
+
 
         if (type !== "note") {
 
-            if (dateInput) {
-                dateInput.value =
-                    item.date || "";
-            }
+            dateInput.value =
+                item.date || "";
 
-            if (timeInput) {
-                timeInput.value =
-                    item.time || "";
-            }
+
+            timeInput.value =
+                item.time || "";
+
         }
 
-        // MEETING
+
         if (type === "meeting") {
 
             const location =
@@ -757,18 +824,21 @@ function openModal(type, item = null) {
             const meetingLink =
                 $("meetingLink");
 
+
             if (location) {
                 location.value =
                     item.location || "";
             }
 
+
             if (meetingLink) {
                 meetingLink.value =
                     item.meetingLink || "";
             }
+
         }
 
-        // INTERVIEW
+
         if (type === "interview") {
 
             const company =
@@ -780,24 +850,31 @@ function openModal(type, item = null) {
             const meetingLink =
                 $("meetingLink");
 
+
             if (company) {
                 company.value =
                     item.company || "";
             }
+
 
             if (position) {
                 position.value =
                     item.position || "";
             }
 
+
             if (meetingLink) {
                 meetingLink.value =
                     item.meetingLink || "";
             }
+
         }
+
     }
 
+
     modal.classList.add("active");
+
 
     setTimeout(() => {
 
@@ -807,6 +884,7 @@ function openModal(type, item = null) {
 
     }, 100);
 }
+
 
 // =====================================================
 // CLOSE MODAL
@@ -818,14 +896,17 @@ function closeModal() {
         return;
     }
 
+
     modal.classList.remove("active");
 
     editingId = null;
+
 
     if (form) {
         form.reset();
     }
 }
+
 
 // =====================================================
 // FORM SUBMIT
@@ -834,6 +915,7 @@ function closeModal() {
 async function handleFormSubmit(event) {
 
     event.preventDefault();
+
 
     if (!currentUser) {
 
@@ -844,30 +926,20 @@ async function handleFormSubmit(event) {
         return;
     }
 
-    if (!titleInput) {
-
-        alert(
-            "The title field is missing."
-        );
-
-        return;
-    }
 
     const title =
         titleInput.value.trim();
+
 
     const description =
         descriptionInput
             ? descriptionInput.value.trim()
             : "";
 
-    // DATE/TIME REQUIRED
 
     if (
         currentType !== "note" &&
         (
-            !dateInput ||
-            !timeInput ||
             !dateInput.value ||
             !timeInput.value
         )
@@ -880,24 +952,25 @@ async function handleFormSubmit(event) {
         return;
     }
 
+
     const saveButton =
-        form?.querySelector(
-            ".save-btn"
-        );
+        form.querySelector(".save-btn");
+
 
     if (saveButton) {
 
         saveButton.disabled = true;
-
         saveButton.textContent =
             "Saving...";
+
     }
+
 
     try {
 
-        // =================================================
-        // EDIT
-        // =================================================
+        // =========================================
+        // UPDATE
+        // =========================================
 
         if (editingId) {
 
@@ -910,6 +983,7 @@ async function handleFormSubmit(event) {
                     editingId
                 );
 
+
             const updatedData = {
 
                 title,
@@ -919,93 +993,72 @@ async function handleFormSubmit(event) {
                 type: currentType,
 
                 updatedAt:
-                    serverTimestamp()
+                    serverTimestamp(),
+
+                date:
+                    currentType === "note"
+                        ? ""
+                        : dateInput.value,
+
+                time:
+                    currentType === "note"
+                        ? ""
+                        : timeInput.value
+
             };
 
-            if (currentType !== "note") {
 
-                updatedData.date =
-                    dateInput.value;
-
-                updatedData.time =
-                    timeInput.value;
-
-            } else {
-
-                updatedData.date = "";
-                updatedData.time = "";
-            }
-
-            // MEETING
-
-            if (
-                currentType === "meeting"
-            ) {
-
-                const location =
-                    $("location");
-
-                const meetingLink =
-                    $("meetingLink");
+            if (currentType === "meeting") {
 
                 updatedData.location =
-                    location?.value?.trim() || "";
+                    $("location")?.value.trim() || "";
 
                 updatedData.meetingLink =
-                    meetingLink?.value?.trim() || "";
+                    $("meetingLink")?.value.trim() || "";
 
                 updatedData.company = "";
                 updatedData.position = "";
+
             }
 
-            // INTERVIEW
 
-            if (
-                currentType === "interview"
-            ) {
-
-                const company =
-                    $("company");
-
-                const position =
-                    $("position");
-
-                const meetingLink =
-                    $("meetingLink");
+            if (currentType === "interview") {
 
                 updatedData.company =
-                    company?.value?.trim() || "";
+                    $("company")?.value.trim() || "";
 
                 updatedData.position =
-                    position?.value?.trim() || "";
+                    $("position")?.value.trim() || "";
 
                 updatedData.meetingLink =
-                    meetingLink?.value?.trim() || "";
+                    $("meetingLink")?.value.trim() || "";
 
                 updatedData.location = "";
+
             }
 
-            // NOTE
 
-            if (
-                currentType === "note"
-            ) {
+            if (currentType === "note") {
 
                 updatedData.location = "";
                 updatedData.company = "";
                 updatedData.position = "";
                 updatedData.meetingLink = "";
+
             }
+
 
             await updateDoc(
                 itemRef,
                 updatedData
             );
+
         }
 
-        // =================================================
+
+        // =========================================
         // CREATE
-        // =================================================
+        // =========================================
 
         else {
 
@@ -1040,57 +1093,42 @@ async function handleFormSubmit(event) {
 
                 updatedAt:
                     serverTimestamp()
+
             };
 
-            // MEETING
 
-            if (
-                currentType === "meeting"
-            ) {
-
-                const location =
-                    $("location");
-
-                const meetingLink =
-                    $("meetingLink");
+            if (currentType === "meeting") {
 
                 newItem.location =
-                    location?.value?.trim() || "";
+                    $("location")?.value.trim() || "";
 
                 newItem.meetingLink =
-                    meetingLink?.value?.trim() || "";
+                    $("meetingLink")?.value.trim() || "";
+
             }
 
-            // INTERVIEW
 
-            if (
-                currentType === "interview"
-            ) {
-
-                const company =
-                    $("company");
-
-                const position =
-                    $("position");
-
-                const meetingLink =
-                    $("meetingLink");
+            if (currentType === "interview") {
 
                 newItem.company =
-                    company?.value?.trim() || "";
+                    $("company")?.value.trim() || "";
 
                 newItem.position =
-                    position?.value?.trim() || "";
+                    $("position")?.value.trim() || "";
 
                 newItem.meetingLink =
-                    meetingLink?.value?.trim() || "";
+                    $("meetingLink")?.value.trim() || "";
+
             }
+
 
             await addDoc(
                 getItemsCollection(),
                 newItem
             );
+
         }
+
 
         closeModal();
 
@@ -1101,8 +1139,9 @@ async function handleFormSubmit(event) {
             error
         );
 
+
         alert(
-            "Unable to save this item. Please check your Firebase Firestore setup."
+            "Unable to save this item. Check Firebase Firestore."
         );
 
     } finally {
@@ -1113,9 +1152,12 @@ async function handleFormSubmit(event) {
 
             saveButton.textContent =
                 "Save";
+
         }
+
     }
 }
+
 
 // =====================================================
 // CHECK FINISHED
@@ -1123,18 +1165,20 @@ async function handleFormSubmit(event) {
 
 function isFinished(item) {
 
-    if (item.type === "note") {
+    if (
+        item.type === "note" ||
+        !item.date ||
+        !item.time
+    ) {
         return false;
     }
 
-    if (!item.date || !item.time) {
-        return false;
-    }
 
     const scheduled =
         new Date(
             `${item.date}T${item.time}`
         );
+
 
     if (
         Number.isNaN(
@@ -1144,11 +1188,13 @@ function isFinished(item) {
         return false;
     }
 
+
     return (
         scheduled.getTime() <
         Date.now()
     );
 }
+
 
 // =====================================================
 // CHECK TODAY
@@ -1156,35 +1202,39 @@ function isFinished(item) {
 
 function isToday(item) {
 
-    if (item.type === "note") {
+    if (
+        item.type === "note" ||
+        !item.date
+    ) {
         return false;
     }
 
-    if (!item.date) {
-        return false;
-    }
 
-    const now =
-        new Date();
+    const now = new Date();
+
 
     const year =
         now.getFullYear();
+
 
     const month =
         String(
             now.getMonth() + 1
         ).padStart(2, "0");
 
+
     const day =
         String(
             now.getDate()
         ).padStart(2, "0");
+
 
     return (
         item.date ===
         `${year}-${month}-${day}`
     );
 }
+
 
 // =====================================================
 // FORMAT DATE
@@ -1196,10 +1246,12 @@ function formatDate(date) {
         return "";
     }
 
+
     const object =
         new Date(
             `${date}T00:00`
         );
+
 
     if (
         Number.isNaN(
@@ -1208,6 +1260,7 @@ function formatDate(date) {
     ) {
         return date;
     }
+
 
     return object.toLocaleDateString(
         undefined,
@@ -1220,6 +1273,7 @@ function formatDate(date) {
     );
 }
 
+
 // =====================================================
 // FORMAT TIME
 // =====================================================
@@ -1230,14 +1284,18 @@ function formatTime(time) {
         return "";
     }
 
+
     const parts =
         time.split(":");
+
 
     const hours =
         Number(parts[0]);
 
+
     const minutes =
         Number(parts[1]);
+
 
     if (
         Number.isNaN(hours) ||
@@ -1246,8 +1304,10 @@ function formatTime(time) {
         return time;
     }
 
+
     const object =
         new Date();
+
 
     object.setHours(
         hours,
@@ -1255,6 +1315,7 @@ function formatTime(time) {
         0,
         0
     );
+
 
     return object.toLocaleTimeString(
         undefined,
@@ -1265,6 +1326,7 @@ function formatTime(time) {
     );
 }
 
+
 // =====================================================
 // MEETING LINK NAME
 // =====================================================
@@ -1272,8 +1334,8 @@ function formatTime(time) {
 function getMeetingLinkName(url, type) {
 
     const lower =
-        String(url || "")
-            .toLowerCase();
+        String(url || "").toLowerCase();
+
 
     if (
         lower.includes("zoom.us") ||
@@ -1281,6 +1343,7 @@ function getMeetingLinkName(url, type) {
     ) {
         return "Join Zoom";
     }
+
 
     if (
         lower.includes(
@@ -1293,6 +1356,7 @@ function getMeetingLinkName(url, type) {
         return "Join Microsoft Teams";
     }
 
+
     if (
         lower.includes(
             "meet.google.com"
@@ -1301,18 +1365,19 @@ function getMeetingLinkName(url, type) {
         return "Join Google Meet";
     }
 
+
     if (
-        lower.includes(
-            "webex.com"
-        )
+        lower.includes("webex.com")
     ) {
         return "Join Webex";
     }
+
 
     return type === "interview"
         ? "Join Interview"
         : "Open Meeting";
 }
+
 
 // =====================================================
 // CREATE ITEM
@@ -1323,34 +1388,39 @@ function createItem(item) {
     const finished =
         isFinished(item);
 
+
     const element =
         document.createElement("div");
+
 
     element.className =
         finished
             ? "item finished"
             : "item";
 
-    // TITLE
 
     let titleHTML = "";
+
 
     if (item.title) {
 
         titleHTML = `
+
             <div class="item-title">
                 ${escapeHTML(item.title)}
             </div>
+
         `;
     }
 
-    // META
 
     let metaHTML = "";
+
 
     if (item.type !== "note") {
 
         metaHTML += `
+
             <span>
                 📅
                 ${formatDate(item.date)}
@@ -1360,7 +1430,9 @@ function createItem(item) {
                 ⏰
                 ${formatTime(item.time)}
             </span>
+
         `;
+
 
         if (
             item.type === "meeting" &&
@@ -1368,12 +1440,17 @@ function createItem(item) {
         ) {
 
             metaHTML += `
+
                 <span>
                     📍
-                    ${escapeHTML(item.location)}
+                    ${escapeHTML(
+                        item.location
+                    )}
                 </span>
+
             `;
         }
+
 
         if (
             item.type === "interview" &&
@@ -1381,12 +1458,17 @@ function createItem(item) {
         ) {
 
             metaHTML += `
+
                 <span>
                     🏢
-                    ${escapeHTML(item.company)}
+                    ${escapeHTML(
+                        item.company
+                    )}
                 </span>
+
             `;
         }
+
 
         if (
             item.type === "interview" &&
@@ -1394,37 +1476,47 @@ function createItem(item) {
         ) {
 
             metaHTML += `
+
                 <span>
                     💼
-                    ${escapeHTML(item.position)}
+                    ${escapeHTML(
+                        item.position
+                    )}
                 </span>
+
             `;
         }
     }
 
+
     const metaBlock =
         metaHTML
             ? `
+
                 <div class="item-meta">
                     ${metaHTML}
                 </div>
+
             `
             : "";
 
-    // DESCRIPTION
 
     const descriptionHTML =
         item.description
             ? `
+
                 <div class="item-description">
-                    ${escapeHTML(item.description)}
+                    ${escapeHTML(
+                        item.description
+                    )}
                 </div>
+
             `
             : "";
 
-    // LINK
 
     let linkHTML = "";
+
 
     if (
         (
@@ -1437,21 +1529,25 @@ function createItem(item) {
         let safeURL =
             item.meetingLink.trim();
 
+
         if (
             !/^https?:\/\//i.test(
                 safeURL
             )
         ) {
-
             safeURL =
                 "https://" +
                 safeURL;
         }
 
+
         linkHTML = `
+
             <a
                 class="meeting-link"
-                href="${escapeAttribute(safeURL)}"
+                href="${escapeAttribute(
+                    safeURL
+                )}"
                 target="_blank"
                 rel="noopener noreferrer"
             >
@@ -1461,10 +1557,10 @@ function createItem(item) {
                     item.type
                 )}
             </a>
+
         `;
     }
 
-    // ITEM HTML
 
     element.innerHTML = `
 
@@ -1480,6 +1576,7 @@ function createItem(item) {
 
         </div>
 
+
         <div class="item-content">
 
             ${titleHTML}
@@ -1492,6 +1589,7 @@ function createItem(item) {
 
         </div>
 
+
         <div class="item-menu">
 
             <button
@@ -1502,6 +1600,7 @@ function createItem(item) {
                 ⋮
             </button>
 
+
             <div class="dropdown-menu">
 
                 <button
@@ -1509,47 +1608,48 @@ function createItem(item) {
                     class="edit-option"
                 >
                     ✏️
-                    <span>
-                        Edit
-                    </span>
+                    <span>Edit</span>
                 </button>
+
 
                 <button
                     type="button"
                     class="delete-option"
                 >
                     🗑️
-                    <span>
-                        Delete
-                    </span>
+                    <span>Delete</span>
                 </button>
 
             </div>
 
         </div>
+
     `;
 
-    // MENU EVENTS
 
     const dotsButton =
         element.querySelector(
             ".dots-btn"
         );
 
+
     const menu =
         element.querySelector(
             ".dropdown-menu"
         );
+
 
     const editButton =
         element.querySelector(
             ".edit-option"
         );
 
+
     const deleteButton =
         element.querySelector(
             ".delete-option"
         );
+
 
     if (dotsButton && menu) {
 
@@ -1560,6 +1660,7 @@ function createItem(item) {
                 event.preventDefault();
                 event.stopPropagation();
 
+
                 document
                     .querySelectorAll(
                         ".dropdown-menu.show"
@@ -1568,22 +1669,28 @@ function createItem(item) {
                         (otherMenu) => {
 
                             if (
-                                otherMenu !== menu
+                                otherMenu !==
+                                menu
                             ) {
 
                                 otherMenu.classList.remove(
                                     "show"
                                 );
+
                             }
+
                         }
                     );
+
 
                 menu.classList.toggle(
                     "show"
                 );
+
             }
         );
     }
+
 
     if (editButton) {
 
@@ -1597,9 +1704,12 @@ function createItem(item) {
                 closeAllMenus();
 
                 editItem(item.id);
+
             }
         );
+
     }
+
 
     if (deleteButton) {
 
@@ -1613,12 +1723,16 @@ function createItem(item) {
                 closeAllMenus();
 
                 deleteItem(item.id);
+
             }
         );
+
     }
+
 
     return element;
 }
+
 
 // =====================================================
 // RENDER LIST
@@ -1633,26 +1747,27 @@ function renderList(
     const container =
         $(containerId);
 
+
     const empty =
         $(emptyId);
 
+
     if (!container) {
-
-        console.warn(
-            `Planner container #${containerId} was not found.`
-        );
-
         return;
     }
 
+
     container.innerHTML = "";
+
 
     data.forEach((item) => {
 
         container.appendChild(
             createItem(item)
         );
+
     });
+
 
     if (empty) {
 
@@ -1660,8 +1775,10 @@ function renderList(
             data.length === 0
                 ? "block"
                 : "none";
+
     }
 }
+
 
 // =====================================================
 // SORT
@@ -1677,18 +1794,22 @@ function sortDateItems(data) {
                     `${a.date || "9999-12-31"}T${a.time || "23:59"}`
                 );
 
+
             const dateB =
                 new Date(
                     `${b.date || "9999-12-31"}T${b.time || "23:59"}`
                 );
 
+
             return (
                 dateA.getTime() -
                 dateB.getTime()
             );
+
         }
     );
 }
+
 
 // =====================================================
 // RENDER ALL
@@ -1698,36 +1819,43 @@ function renderAll() {
 
     const meetings =
         items.filter(
-            (item) =>
+            item =>
                 item.type === "meeting"
         );
 
+
     const interviews =
         items.filter(
-            (item) =>
+            item =>
                 item.type === "interview"
         );
 
+
     const notes =
         items.filter(
-            (item) =>
+            item =>
                 item.type === "note"
         );
 
+
     const today =
         items.filter(
-            (item) =>
+            item =>
                 isToday(item)
         );
+
 
     const sortedMeetings =
         sortDateItems(meetings);
 
+
     const sortedInterviews =
         sortDateItems(interviews);
 
+
     const sortedToday =
         sortDateItems(today);
+
 
     const sortedNotes =
         [...notes].sort(
@@ -1736,56 +1864,92 @@ function renderAll() {
                 const aTime =
                     a.createdAt?.seconds || 0;
 
+
                 const bTime =
                     b.createdAt?.seconds || 0;
 
+
                 return bTime - aTime;
+
             }
         );
 
+
     // COUNTS
 
-    setText(
-        $("todayCount"),
-        today.length
-    );
+    const todayCount =
+        $("todayCount");
 
-    setText(
-        $("meetingCount"),
-        meetings.length
-    );
+    if (todayCount) {
+        todayCount.textContent =
+            today.length;
+    }
 
-    setText(
-        $("interviewCount"),
-        interviews.length
-    );
 
-    setText(
-        $("noteCount"),
-        notes.length
-    );
+    const meetingCount =
+        $("meetingCount");
+
+    if (meetingCount) {
+        meetingCount.textContent =
+            meetings.length;
+    }
+
+
+    const interviewCount =
+        $("interviewCount");
+
+    if (interviewCount) {
+        interviewCount.textContent =
+            interviews.length;
+    }
+
+
+    const noteCount =
+        $("noteCount");
+
+    if (noteCount) {
+        noteCount.textContent =
+            notes.length;
+    }
+
 
     // BADGES
 
-    setText(
-        $("todayBadge"),
-        today.length
-    );
+    const todayBadge =
+        $("todayBadge");
 
-    setText(
-        $("meetingsBadge"),
-        meetings.length
-    );
+    if (todayBadge) {
+        todayBadge.textContent =
+            today.length;
+    }
 
-    setText(
-        $("interviewsBadge"),
-        interviews.length
-    );
 
-    setText(
-        $("notesBadge"),
-        notes.length
-    );
+    const meetingsBadge =
+        $("meetingsBadge");
+
+    if (meetingsBadge) {
+        meetingsBadge.textContent =
+            meetings.length;
+    }
+
+
+    const interviewsBadge =
+        $("interviewsBadge");
+
+    if (interviewsBadge) {
+        interviewsBadge.textContent =
+            interviews.length;
+    }
+
+
+    const notesBadge =
+        $("notesBadge");
+
+    if (notesBadge) {
+        notesBadge.textContent =
+            notes.length;
+    }
+
 
     // LISTS
 
@@ -1795,17 +1959,20 @@ function renderAll() {
         sortedToday
     );
 
+
     renderList(
         "meetingsList",
         "emptyMeetings",
         sortedMeetings
     );
 
+
     renderList(
         "interviewsList",
         "emptyInterviews",
         sortedInterviews
     );
+
 
     renderList(
         "notesList",
@@ -1814,21 +1981,24 @@ function renderAll() {
     );
 }
 
+
 // =====================================================
-// EDIT ITEM
+// EDIT
 // =====================================================
 
 function editItem(id) {
 
     const item =
         items.find(
-            (existingItem) =>
+            existingItem =>
                 existingItem.id === id
         );
+
 
     if (!item) {
         return;
     }
+
 
     openModal(
         item.type,
@@ -1836,34 +2006,40 @@ function editItem(id) {
     );
 }
 
+
 // =====================================================
-// DELETE ITEM
+// DELETE
 // =====================================================
 
 async function deleteItem(id) {
 
     const item =
         items.find(
-            (existingItem) =>
+            existingItem =>
                 existingItem.id === id
         );
+
 
     if (!item) {
         return;
     }
+
 
     const confirmed =
         confirm(
             "Are you sure you want to delete this item?"
         );
 
+
     if (!confirmed) {
         return;
     }
 
+
     if (!currentUser) {
         return;
     }
+
 
     try {
 
@@ -1884,11 +2060,14 @@ async function deleteItem(id) {
             error
         );
 
+
         alert(
             "Unable to delete this item."
         );
+
     }
 }
+
 
 // =====================================================
 // CLOSE MENUS
@@ -1901,14 +2080,16 @@ function closeAllMenus() {
             ".dropdown-menu.show"
         )
         .forEach(
-            (menu) => {
+            menu => {
 
                 menu.classList.remove(
                     "show"
                 );
+
             }
         );
 }
+
 
 // =====================================================
 // ESCAPE HTML
@@ -1919,11 +2100,14 @@ function escapeHTML(value) {
     const div =
         document.createElement("div");
 
+
     div.textContent =
         String(value ?? "");
 
+
     return div.innerHTML;
 }
+
 
 // =====================================================
 // ESCAPE ATTRIBUTE
@@ -1938,6 +2122,7 @@ function escapeAttribute(value) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 }
+
 
 // =====================================================
 // AUTOMATIC REFRESH
