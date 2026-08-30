@@ -51,7 +51,22 @@ export const auth = getAuth(app);
 // =====================================================
 
 export const db = initializeFirestore(app, {
+
     localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
+
+        tabManager:
+            persistentMultipleTabManager()
+
     })
+
 });
+
+
+// =====================================================
+// DEBUG
+// =====================================================
+
+console.log("🔥 Firebase initialized");
+console.log("🔥 Project:", firebaseConfig.projectId);
+console.log("👤 Firebase Authentication initialized");
+console.log("📦 Firestore offline persistence enabled");

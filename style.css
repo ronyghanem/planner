@@ -2096,3 +2096,98 @@ transform: rotate(360deg);
     }
 
 }
+/* =====================================================
+   CONNECTION STATUS
+===================================================== */
+
+.connection-status {
+    position: fixed;
+
+    left: 50%;
+
+    bottom: 16px;
+
+    transform:
+        translateX(-50%);
+
+    z-index: 99999;
+
+    padding:
+        8px 13px;
+
+    border-radius: 999px;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    box-shadow:
+        0 8px 25px
+        rgba(
+            15,
+            23,
+            42,
+            0.12
+        );
+
+    backdrop-filter:
+        blur(10px);
+
+    border: 1px solid
+        rgba(
+            255,
+            255,
+            255,
+            0.8
+        );
+
+    pointer-events: none;
+}
+
+
+.connection-status.online {
+
+    background:
+        rgba(
+            240,
+            253,
+            244,
+            0.94
+        );
+
+    color:
+        #15803d;
+}
+
+
+.connection-status.offline {
+
+    background:
+        rgba(
+            254,
+            242,
+            242,
+            0.96
+        );
+
+    color:
+        #b91c1c;
+}
+
+
+@media (max-width: 600px) {
+
+    .connection-status {
+
+        bottom: 10px;
+
+        max-width:
+            calc(100vw - 24px);
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+    }
+}

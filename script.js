@@ -1,5 +1,5 @@
 // =====================================================
-// FIREBASE IMPORTS
+// MY PLANNER - OFFLINE FIRST
 // =====================================================
 
 import {
@@ -11,7 +11,9 @@ import {
     onSnapshot,
     query,
     orderBy,
-    serverTimestamp
+    serverTimestamp,
+    getDocs,
+    setDoc
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 import {
@@ -30,14 +32,22 @@ import {
 // =====================================================
 
 let items = [];
+
 let currentUser = null;
+
 let currentType = "meeting";
+
 let editingId = null;
+
 let unsubscribeItems = null;
+
+let isOnline = navigator.onLine;
+
+let syncing = false;
 
 
 // =====================================================
-// DOM ELEMENTS
+// DOM
 // =====================================================
 
 let modal;
@@ -60,133 +70,623 @@ const $ = (id) => document.getElementById(id);
 
 
 // =====================================================
-// START APPLICATION
+// LOCAL STORAGE KEYS
 // =====================================================
 
-document.addEventListener("DOMContentLoaded", () => {
+function getStorageKey(uid) {
+    return `planner_items_${uid}`;
+}
 
-    console.log("=================================");
-    console.log("MY PLANNER STARTING");
-    console.log("=================================");
+function getPendingKey(uid) {
+    return `planner_pending_${uid}`;
+}
 
-    modal = $("modal");
-    form = $("itemForm");
-    titleInput = $("title");
-    dateInput = $("date");
-    timeInput = $("time");
-    descriptionInput = $("description");
-    dateTimeFields = $("dateTimeFields");
-    extraFields = $("extraFields");
-    plannerApp = $("plannerApp");
-    appLoading = $("appLoading");
+function getUserKey() {
+    return "planner_last_user";
+}
 
 
-    console.log("plannerApp:", plannerApp);
-    console.log("appLoading:", appLoading);
-    console.log("form:", form);
+// =====================================================
+// LOCAL DATA
+// =====================================================
 
+function loadLocalItems(uid) {
 
-    if (!plannerApp) {
+    if (!uid) {
+        return [];
+    }
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                getStorageKey(uid)
+            );
+
+        if (!saved) {
+            return [];
+        }
+
+        const parsed =
+            JSON.parse(saved);
+
+        return Array.isArray(parsed)
+            ? parsed
+            : [];
+
+    } catch (error) {
 
         console.error(
-            "ERROR: #plannerApp was not found in HTML."
+            "Local load error:",
+            error
         );
 
+        return [];
+    }
+}
+
+
+// =====================================================
+// SAVE LOCAL DATA
+// =====================================================
+
+function saveLocalItems(uid, data) {
+
+    if (!uid) {
         return;
     }
 
+    try {
 
-    // Hide app while checking authentication
-    plannerApp.style.display = "none";
+        localStorage.setItem(
+            getStorageKey(uid),
+            JSON.stringify(data)
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Local save error:",
+            error
+        );
+    }
+}
 
 
-    if (appLoading) {
-        appLoading.style.display = "flex";
+// =====================================================
+// PENDING OPERATIONS
+// =====================================================
+
+function loadPendingOperations(uid) {
+
+    if (!uid) {
+        return [];
+    }
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                getPendingKey(uid)
+            );
+
+        if (!saved) {
+            return [];
+        }
+
+        const parsed =
+            JSON.parse(saved);
+
+        return Array.isArray(parsed)
+            ? parsed
+            : [];
+
+    } catch (error) {
+
+        console.error(
+            "Pending load error:",
+            error
+        );
+
+        return [];
+    }
+}
+
+
+function savePendingOperations(uid, operations) {
+
+    if (!uid) {
+        return;
+    }
+
+    try {
+
+        localStorage.setItem(
+            getPendingKey(uid),
+            JSON.stringify(operations)
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Pending save error:",
+            error
+        );
+    }
+}
+
+
+// =====================================================
+// ADD PENDING OPERATION
+// =====================================================
+
+function addPendingOperation(operation) {
+
+    if (!currentUser) {
+        return;
+    }
+
+    const operations =
+        loadPendingOperations(
+            currentUser.uid
+        );
+
+    operations.push(operation);
+
+    savePendingOperations(
+        currentUser.uid,
+        operations
+    );
+}
+
+
+// =====================================================
+// OFFLINE STATUS UI
+// =====================================================
+
+function updateOnlineStatus() {
+
+    isOnline = navigator.onLine;
+
+    let indicator =
+        $("connectionStatus");
+
+    if (!indicator) {
+
+        indicator =
+            document.createElement("div");
+
+        indicator.id =
+            "connectionStatus";
+
+        indicator.className =
+            "connection-status";
+
+        document.body.appendChild(
+            indicator
+        );
     }
 
 
-    setupEventListeners();
-    setupLogout();
+    if (isOnline) {
+
+        indicator.textContent =
+            "🟢 Online — Syncing data";
+
+        indicator.classList.remove(
+            "offline"
+        );
+
+        indicator.classList.add(
+            "online"
+        );
+
+    } else {
+
+        indicator.textContent =
+            "🔴 Offline — Saved data available";
+
+        indicator.classList.remove(
+            "online"
+        );
+
+        indicator.classList.add(
+            "offline"
+        );
+    }
+}
 
 
-    // =================================================
-    // FIREBASE AUTH
-    // =================================================
+// =====================================================
+// ONLINE
+// =====================================================
 
-    onAuthStateChanged(auth, (user) => {
+window.addEventListener(
+    "online",
+    async () => {
 
-        console.log("---------------------------------");
-        console.log("Firebase Auth State Changed");
-        console.log("User:", user);
-        console.log("---------------------------------");
+        console.log(
+            "🌐 Internet connection restored"
+        );
 
+        updateOnlineStatus();
 
-        // =============================================
-        // NOT LOGGED IN
-        // =============================================
+        if (currentUser) {
 
-        if (!user) {
+            await syncPendingOperations();
 
-            console.log("❌ No user logged in");
-
-            currentUser = null;
-
-
-            if (unsubscribeItems) {
-
-                unsubscribeItems();
-
-                unsubscribeItems = null;
-            }
+            startRealtimeItemsListener();
+        }
+    }
+);
 
 
-            window.location.replace("login.html");
+// =====================================================
+// OFFLINE
+// =====================================================
+
+window.addEventListener(
+    "offline",
+    () => {
+
+        console.log(
+            "🔴 Internet connection lost"
+        );
+
+        updateOnlineStatus();
+
+        renderAll();
+    }
+);
+
+
+// =====================================================
+// START APPLICATION
+// =====================================================
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        console.log(
+            "================================="
+        );
+
+        console.log(
+            "MY PLANNER - OFFLINE FIRST"
+        );
+
+        console.log(
+            "================================="
+        );
+
+
+        modal =
+            $("modal");
+
+        form =
+            $("itemForm");
+
+        titleInput =
+            $("title");
+
+        dateInput =
+            $("date");
+
+        timeInput =
+            $("time");
+
+        descriptionInput =
+            $("description");
+
+        dateTimeFields =
+            $("dateTimeFields");
+
+        extraFields =
+            $("extraFields");
+
+        plannerApp =
+            $("plannerApp");
+
+        appLoading =
+            $("appLoading");
+
+
+        if (!plannerApp) {
+
+            console.error(
+                "#plannerApp not found."
+            );
 
             return;
         }
 
 
-        // =============================================
-        // LOGGED IN
-        // =============================================
-
-        console.log("✅ USER IS LOGGED IN");
-        console.log("Email:", user.email);
-        console.log("UID:", user.uid);
+        plannerApp.style.display =
+            "none";
 
 
-        currentUser = user;
-
-
-        const emailElement = $("userEmail");
-
-
-        if (emailElement) {
-
-            emailElement.textContent =
-                user.email || "User";
-        }
-
-
-        // Show planner
         if (appLoading) {
-
-            appLoading.style.display = "none";
+            appLoading.style.display =
+                "flex";
         }
 
 
-        plannerApp.style.display = "block";
+        setupEventListeners();
+
+        setupLogout();
+
+        updateOnlineStatus();
+
+        registerServiceWorker();
 
 
-        console.log("✅ Planner is now visible");
+        // =========================================
+        // FIREBASE AUTH
+        // =========================================
+
+        onAuthStateChanged(
+            auth,
+            async (user) => {
+
+                console.log(
+                    "Auth state:",
+                    user
+                );
 
 
-        // Start Firestore
+                if (user) {
+
+                    await initializeUser(
+                        user
+                    );
+
+                    return;
+                }
+
+
+                // =================================
+                // OFFLINE SESSION FALLBACK
+                // =================================
+
+                if (!navigator.onLine) {
+
+                    const lastUser =
+                        getLastUser();
+
+                    if (lastUser) {
+
+                        console.log(
+                            "🔴 Using offline session"
+                        );
+
+                        currentUser =
+                            lastUser;
+
+                        initializeOfflineUser(
+                            lastUser
+                        );
+
+                        return;
+                    }
+                }
+
+
+                currentUser = null;
+
+
+                if (unsubscribeItems) {
+
+                    unsubscribeItems();
+
+                    unsubscribeItems = null;
+                }
+
+
+                window.location.replace(
+                    "login.html"
+                );
+            }
+        );
+    }
+);
+
+
+// =====================================================
+// SAVE LAST USER
+// =====================================================
+
+function saveLastUser(user) {
+
+    try {
+
+        localStorage.setItem(
+            getUserKey(),
+            JSON.stringify({
+                uid: user.uid,
+                email: user.email || "User"
+            })
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Unable to save last user:",
+            error
+        );
+    }
+}
+
+
+// =====================================================
+// GET LAST USER
+// =====================================================
+
+function getLastUser() {
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                getUserKey()
+            );
+
+        if (!saved) {
+            return null;
+        }
+
+        const user =
+            JSON.parse(saved);
+
+        if (!user.uid) {
+            return null;
+        }
+
+        return user;
+
+    } catch (error) {
+
+        return null;
+    }
+}
+
+
+// =====================================================
+// INITIALIZE USER
+// =====================================================
+
+async function initializeUser(user) {
+
+    currentUser = user;
+
+    saveLastUser(user);
+
+
+    const emailElement =
+        $("userEmail");
+
+    if (emailElement) {
+
+        emailElement.textContent =
+            user.email || "User";
+    }
+
+
+    // =============================================
+    // LOAD LOCAL DATA FIRST
+    // =============================================
+
+    items =
+        loadLocalItems(
+            user.uid
+        );
+
+
+    showPlanner();
+
+    renderAll();
+
+
+    // =============================================
+    // FIREBASE
+    // =============================================
+
+    if (navigator.onLine) {
+
         startRealtimeItemsListener();
 
-    });
+        await syncPendingOperations();
 
-});
+    } else {
+
+        console.log(
+            "🔴 Offline - using local data"
+        );
+    }
+}
+
+
+// =====================================================
+// OFFLINE USER
+// =====================================================
+
+function initializeOfflineUser(user) {
+
+    const emailElement =
+        $("userEmail");
+
+    if (emailElement) {
+
+        emailElement.textContent =
+            user.email || "User";
+    }
+
+
+    items =
+        loadLocalItems(
+            user.uid
+        );
+
+
+    showPlanner();
+
+    renderAll();
+}
+
+
+// =====================================================
+// SHOW PLANNER
+// =====================================================
+
+function showPlanner() {
+
+    if (appLoading) {
+
+        appLoading.style.display =
+            "none";
+    }
+
+    plannerApp.style.display =
+        "block";
+}
+
+
+// =====================================================
+// SERVICE WORKER
+// =====================================================
+
+function registerServiceWorker() {
+
+    if (
+        "serviceWorker" in navigator
+    ) {
+
+        window.addEventListener(
+            "load",
+            () => {
+
+                navigator.serviceWorker
+                    .register(
+                        "/sw.js"
+                    )
+                    .then(() => {
+
+                        console.log(
+                            "✅ Service Worker registered"
+                        );
+
+                    })
+                    .catch(error => {
+
+                        console.error(
+                            "Service Worker error:",
+                            error
+                        );
+                    });
+            }
+        );
+    }
+}
 
 
 // =====================================================
@@ -199,7 +699,6 @@ function getItemsCollection() {
         return null;
     }
 
-
     return collection(
         db,
         "users",
@@ -210,17 +709,16 @@ function getItemsCollection() {
 
 
 // =====================================================
-// FIRESTORE REALTIME LISTENER
+// FIRESTORE LISTENER
 // =====================================================
 
 function startRealtimeItemsListener() {
 
     if (!currentUser) {
+        return;
+    }
 
-        console.warn(
-            "Cannot start Firestore listener: no user."
-        );
-
+    if (!navigator.onLine) {
         return;
     }
 
@@ -236,61 +734,287 @@ function startRealtimeItemsListener() {
     const itemsCollection =
         getItemsCollection();
 
-
     if (!itemsCollection) {
         return;
     }
 
 
-    const itemsQuery = query(
-        itemsCollection,
-        orderBy("createdAt", "desc")
+    const itemsQuery =
+        query(
+            itemsCollection,
+            orderBy(
+                "createdAt",
+                "desc"
+            )
+        );
+
+
+    unsubscribeItems =
+        onSnapshot(
+
+            itemsQuery,
+
+            snapshot => {
+
+                console.log(
+                    "☁️ Firebase items:",
+                    snapshot.size
+                );
+
+
+                const firebaseItems =
+                    snapshot.docs.map(
+                        itemDocument => ({
+                            id:
+                                itemDocument.id,
+                            ...itemDocument.data()
+                        })
+                    );
+
+
+                // =================================
+                // MERGE FIREBASE WITH LOCAL
+                // =================================
+
+                const pending =
+                    loadPendingOperations(
+                        currentUser.uid
+                    );
+
+
+                const pendingIds =
+                    new Set(
+                        pending
+                            .filter(
+                                operation =>
+                                    operation.item
+                            )
+                            .map(
+                                operation =>
+                                    operation.item.id
+                            )
+                    );
+
+
+                const remoteItems =
+                    firebaseItems.filter(
+                        item =>
+                            !pendingIds.has(
+                                item.id
+                            )
+                    );
+
+
+                const pendingLocalItems =
+                    items.filter(
+                        item =>
+                            pendingIds.has(
+                                item.id
+                            )
+                    );
+
+
+                items = [
+                    ...remoteItems,
+                    ...pendingLocalItems
+                ];
+
+
+                saveLocalItems(
+                    currentUser.uid,
+                    items
+                );
+
+
+                renderAll();
+
+                updateOnlineStatus();
+            },
+
+            error => {
+
+                console.error(
+                    "Firestore listener:",
+                    error
+                );
+
+                // Do NOT hide planner.
+                // Local data remains available.
+
+                renderAll();
+            }
+        );
+}
+
+
+// =====================================================
+// SYNC PENDING OPERATIONS
+// =====================================================
+
+async function syncPendingOperations() {
+
+    if (
+        !currentUser ||
+        !navigator.onLine ||
+        syncing
+    ) {
+        return;
+    }
+
+
+    const operations =
+        loadPendingOperations(
+            currentUser.uid
+        );
+
+
+    if (
+        operations.length === 0
+    ) {
+        return;
+    }
+
+
+    syncing = true;
+
+
+    console.log(
+        "🔄 Syncing",
+        operations.length,
+        "offline operations..."
     );
 
 
-    unsubscribeItems = onSnapshot(
-        itemsQuery,
+    const remaining = [];
 
-        (snapshot) => {
+
+    for (
+        const operation
+        of operations
+    ) {
+
+        try {
+
+            const item =
+                operation.item;
+
+
+            if (
+                operation.action ===
+                "create"
+            ) {
+
+                const itemRef =
+                    doc(
+                        db,
+                        "users",
+                        currentUser.uid,
+                        "plannerItems",
+                        item.id
+                    );
+
+
+                await setDoc(
+                    itemRef,
+                    {
+                        ...item,
+                        createdAt:
+                            item.createdAt ||
+                            serverTimestamp(),
+                        updatedAt:
+                            serverTimestamp()
+                    }
+                );
+            }
+
+
+            else if (
+                operation.action ===
+                "update"
+            ) {
+
+                const itemRef =
+                    doc(
+                        db,
+                        "users",
+                        currentUser.uid,
+                        "plannerItems",
+                        item.id
+                    );
+
+
+                await updateDoc(
+                    itemRef,
+                    {
+                        ...item,
+                        updatedAt:
+                            serverTimestamp()
+                    }
+                );
+            }
+
+
+            else if (
+                operation.action ===
+                "delete"
+            ) {
+
+                const itemRef =
+                    doc(
+                        db,
+                        "users",
+                        currentUser.uid,
+                        "plannerItems",
+                        item.id
+                    );
+
+
+                await deleteDoc(
+                    itemRef
+                );
+            }
+
 
             console.log(
-                "Firestore items:",
-                snapshot.size
+                "✅ Synced:",
+                operation.action,
+                item.id
             );
 
-
-            items = snapshot.docs.map(
-                (itemDocument) => ({
-
-                    id: itemDocument.id,
-
-                    ...itemDocument.data()
-
-                })
-            );
-
-
-            renderAll();
-
-        },
-
-        (error) => {
+        } catch (error) {
 
             console.error(
-                "Firestore listener error:",
+                "Sync operation failed:",
                 error
             );
 
 
-            // Do not destroy the application.
-            // Firestore can still have local cached data.
-
-            console.log(
-                "Using locally cached planner data."
+            remaining.push(
+                operation
             );
-
         }
+    }
+
+
+    savePendingOperations(
+        currentUser.uid,
+        remaining
     );
+
+
+    syncing = false;
+
+
+    if (
+        remaining.length === 0
+    ) {
+
+        console.log(
+            "✅ Everything synchronized"
+        );
+
+        updateOnlineStatus();
+    }
 }
 
 
@@ -300,9 +1024,8 @@ function startRealtimeItemsListener() {
 
 function setupEventListeners() {
 
-    // TODAY
-    const todayAction = $("todayAction");
-
+    const todayAction =
+        $("todayAction");
 
     if (todayAction) {
 
@@ -310,14 +1033,11 @@ function setupEventListeners() {
             "click",
             () => showSection("today")
         );
-
     }
 
 
-    // ADD MEETING
     const addMeetingAction =
         $("addMeetingAction");
-
 
     if (addMeetingAction) {
 
@@ -325,14 +1045,11 @@ function setupEventListeners() {
             "click",
             () => openModal("meeting")
         );
-
     }
 
 
-    // ADD INTERVIEW
     const addInterviewAction =
         $("addInterviewAction");
-
 
     if (addInterviewAction) {
 
@@ -340,14 +1057,11 @@ function setupEventListeners() {
             "click",
             () => openModal("interview")
         );
-
     }
 
 
-    // ADD NOTE
     const addNoteAction =
         $("addNoteAction");
-
 
     if (addNoteAction) {
 
@@ -355,14 +1069,12 @@ function setupEventListeners() {
             "click",
             () => openModal("note")
         );
-
     }
 
 
-    // VIEW BUTTONS
     document
         .querySelectorAll(".view-btn")
-        .forEach((button) => {
+        .forEach(button => {
 
             button.addEventListener(
                 "click",
@@ -371,34 +1083,25 @@ function setupEventListeners() {
                     const section =
                         button.dataset.section;
 
-
                     if (section) {
-
                         showSection(section);
-
                     }
-
                 }
             );
-
         });
 
 
-    // FORM
     if (form) {
 
         form.addEventListener(
             "submit",
             handleFormSubmit
         );
-
     }
 
 
-    // CLOSE MODAL
     const closeModalBtn =
         $("closeModalBtn");
-
 
     if (closeModalBtn) {
 
@@ -406,14 +1109,11 @@ function setupEventListeners() {
             "click",
             closeModal
         );
-
     }
 
 
-    // CANCEL
     const cancelBtn =
         $("cancelBtn");
-
 
     if (cancelBtn) {
 
@@ -421,66 +1121,59 @@ function setupEventListeners() {
             "click",
             closeModal
         );
-
     }
 
 
-    // CLICK OUTSIDE
     if (modal) {
 
         modal.addEventListener(
             "click",
-            (event) => {
+            event => {
 
-                if (event.target === modal) {
-
+                if (
+                    event.target === modal
+                ) {
                     closeModal();
-
                 }
-
             }
         );
-
     }
 
 
-    // ESCAPE
     document.addEventListener(
         "keydown",
-        (event) => {
+        event => {
 
-            if (event.key === "Escape") {
+            if (
+                event.key === "Escape"
+            ) {
 
                 closeModal();
 
                 closeAllMenus();
-
             }
-
         }
     );
 
 
-    // CLOSE MENUS
     document.addEventListener(
         "click",
-        (event) => {
+        event => {
 
-            const target = event.target;
-
+            const target =
+                event.target;
 
             if (
                 target instanceof Element &&
-                !target.closest(".item-menu")
+                !target.closest(
+                    ".item-menu"
+                )
             ) {
 
                 closeAllMenus();
-
             }
-
         }
     );
-
 }
 
 
@@ -492,7 +1185,6 @@ function setupLogout() {
 
     const logoutButton =
         $("logoutButton");
-
 
     if (!logoutButton) {
         return;
@@ -518,6 +1210,7 @@ function setupLogout() {
 
                 await signOut(auth);
 
+                currentUser = null;
 
                 window.location.replace(
                     "login.html"
@@ -530,16 +1223,12 @@ function setupLogout() {
                     error
                 );
 
-
                 alert(
-                    "Unable to logout. Please try again."
+                    "Unable to logout."
                 );
-
             }
-
         }
     );
-
 }
 
 
@@ -551,7 +1240,8 @@ function showSection(section) {
 
     const sections = {
 
-        today: $("todaySection"),
+        today:
+            $("todaySection"),
 
         meetings:
             $("meetingsSection"),
@@ -561,42 +1251,42 @@ function showSection(section) {
 
         notes:
             $("notesSection")
-
     };
 
 
     document
-        .querySelectorAll(".planner-section")
-        .forEach((element) => {
+        .querySelectorAll(
+            ".planner-section"
+        )
+        .forEach(element => {
 
             element.classList.add(
                 "hidden-section"
             );
-
         });
 
 
     document
-        .querySelectorAll(".view-btn")
-        .forEach((button) => {
+        .querySelectorAll(
+            ".view-btn"
+        )
+        .forEach(button => {
 
             button.classList.remove(
                 "active"
             );
-
         });
 
 
-    const selectedSection =
+    const selected =
         sections[section];
 
 
-    if (selectedSection) {
+    if (selected) {
 
-        selectedSection.classList.remove(
+        selected.classList.remove(
             "hidden-section"
         );
-
     }
 
 
@@ -611,9 +1301,7 @@ function showSection(section) {
         activeButton.classList.add(
             "active"
         );
-
     }
-
 }
 
 
@@ -624,11 +1312,6 @@ function showSection(section) {
 function openModal(type, item = null) {
 
     if (!modal || !form) {
-
-        console.error(
-            "Modal or form missing."
-        );
-
         return;
     }
 
@@ -652,10 +1335,6 @@ function openModal(type, item = null) {
         $("modalIcon");
 
 
-    // =================================================
-    // MEETING
-    // =================================================
-
     if (type === "meeting") {
 
         modalTitle.textContent =
@@ -663,14 +1342,13 @@ function openModal(type, item = null) {
                 ? "Edit Meeting"
                 : "Add Meeting";
 
-
         modalDescription.textContent =
             item
                 ? "Update your meeting details."
                 : "Add a new meeting.";
 
-
-        modalIcon.textContent = "📅";
+        modalIcon.textContent =
+            "📅";
 
 
         dateTimeFields.style.display =
@@ -682,15 +1360,11 @@ function openModal(type, item = null) {
             <div class="form-group">
 
                 <label for="location">
-
                     Location
-
                     <span class="optional">
                         Optional
                     </span>
-
                 </label>
-
 
                 <input
                     type="text"
@@ -700,19 +1374,14 @@ function openModal(type, item = null) {
 
             </div>
 
-
             <div class="form-group">
 
                 <label for="meetingLink">
-
                     Meeting Link
-
                     <span class="optional">
                         Optional
                     </span>
-
                 </label>
-
 
                 <input
                     type="url"
@@ -721,14 +1390,9 @@ function openModal(type, item = null) {
                 >
 
             </div>
-
         `;
     }
 
-
-    // =================================================
-    // INTERVIEW
-    // =================================================
 
     else if (type === "interview") {
 
@@ -737,14 +1401,13 @@ function openModal(type, item = null) {
                 ? "Edit Interview"
                 : "Add Interview";
 
-
         modalDescription.textContent =
             item
                 ? "Update your interview details."
                 : "Add a new job interview.";
 
-
-        modalIcon.textContent = "💼";
+        modalIcon.textContent =
+            "💼";
 
 
         dateTimeFields.style.display =
@@ -758,15 +1421,11 @@ function openModal(type, item = null) {
                 <div class="form-group">
 
                     <label for="company">
-
                         Company
-
                         <span class="optional">
                             Optional
                         </span>
-
                     </label>
-
 
                     <input
                         type="text"
@@ -776,19 +1435,14 @@ function openModal(type, item = null) {
 
                 </div>
 
-
                 <div class="form-group">
 
                     <label for="position">
-
                         Position
-
                         <span class="optional">
                             Optional
                         </span>
-
                     </label>
-
 
                     <input
                         type="text"
@@ -800,19 +1454,14 @@ function openModal(type, item = null) {
 
             </div>
 
-
             <div class="form-group">
 
                 <label for="meetingLink">
-
                     Interview Link
-
                     <span class="optional">
                         Optional
                     </span>
-
                 </label>
-
 
                 <input
                     type="url"
@@ -821,14 +1470,9 @@ function openModal(type, item = null) {
                 >
 
             </div>
-
         `;
     }
 
-
-    // =================================================
-    // NOTE
-    // =================================================
 
     else {
 
@@ -837,14 +1481,13 @@ function openModal(type, item = null) {
                 ? "Edit Note"
                 : "Add Note";
 
-
         modalDescription.textContent =
             item
                 ? "Update your note."
                 : "Save an important note.";
 
-
-        modalIcon.textContent = "📝";
+        modalIcon.textContent =
+            "📝";
 
 
         dateTimeFields.style.display =
@@ -852,19 +1495,17 @@ function openModal(type, item = null) {
 
 
         extraFields.innerHTML = "";
-
     }
 
 
-    // =================================================
-    // LOAD EXISTING ITEM
-    // =================================================
+    // =============================================
+    // LOAD EXISTING
+    // =============================================
 
     if (item) {
 
         titleInput.value =
             item.title || "";
-
 
         descriptionInput.value =
             item.description || "";
@@ -875,93 +1516,48 @@ function openModal(type, item = null) {
             dateInput.value =
                 item.date || "";
 
-
             timeInput.value =
                 item.time || "";
-
         }
 
 
         if (type === "meeting") {
 
-            const location =
-                $("location");
+            $("location").value =
+                item.location || "";
 
-            const meetingLink =
-                $("meetingLink");
-
-
-            if (location) {
-
-                location.value =
-                    item.location || "";
-
-            }
-
-
-            if (meetingLink) {
-
-                meetingLink.value =
-                    item.meetingLink || "";
-
-            }
-
+            $("meetingLink").value =
+                item.meetingLink || "";
         }
 
 
         if (type === "interview") {
 
-            const company =
-                $("company");
+            $("company").value =
+                item.company || "";
 
-            const position =
-                $("position");
+            $("position").value =
+                item.position || "";
 
-            const meetingLink =
-                $("meetingLink");
-
-
-            if (company) {
-
-                company.value =
-                    item.company || "";
-
-            }
-
-
-            if (position) {
-
-                position.value =
-                    item.position || "";
-
-            }
-
-
-            if (meetingLink) {
-
-                meetingLink.value =
-                    item.meetingLink || "";
-
-            }
-
+            $("meetingLink").value =
+                item.meetingLink || "";
         }
-
     }
 
 
-    modal.classList.add("active");
+    modal.classList.add(
+        "active"
+    );
 
 
-    setTimeout(() => {
+    setTimeout(
+        () => {
 
-        if (titleInput) {
+            titleInput?.focus();
 
-            titleInput.focus();
-
-        }
-
-    }, 100);
-
+        },
+        100
+    );
 }
 
 
@@ -976,35 +1572,43 @@ function closeModal() {
     }
 
 
-    modal.classList.remove("active");
+    modal.classList.remove(
+        "active"
+    );
 
 
     editingId = null;
 
 
     if (form) {
-
         form.reset();
+    }
+}
 
+
+// =====================================================
+// CREATE LOCAL ID
+// =====================================================
+
+function createLocalId() {
+
+    if (
+        window.crypto &&
+        crypto.randomUUID
+    ) {
+
+        return crypto.randomUUID();
     }
 
 
-    // IMPORTANT:
-    // Always restore the Save button.
-
-    const saveButton =
-        form?.querySelector(".save-btn");
-
-
-    if (saveButton) {
-
-        saveButton.disabled = false;
-
-        saveButton.textContent =
-            "Save";
-
-    }
-
+    return (
+        "local_" +
+        Date.now() +
+        "_" +
+        Math.random()
+            .toString(36)
+            .substring(2)
+    );
 }
 
 
@@ -1037,6 +1641,16 @@ async function handleFormSubmit(event) {
             : "";
 
 
+    if (!title) {
+
+        alert(
+            "Please enter a title."
+        );
+
+        return;
+    }
+
+
     if (
         currentType !== "note" &&
         (
@@ -1053,27 +1667,152 @@ async function handleFormSubmit(event) {
     }
 
 
-    const saveButton =
-        form.querySelector(".save-btn");
+    // =============================================
+    // BUILD ITEM
+    // =============================================
+
+    const existingItem =
+        editingId
+            ? items.find(
+                item =>
+                    item.id === editingId
+            )
+            : null;
 
 
-    if (saveButton) {
+    const item = {
 
-        saveButton.disabled = true;
+        id:
+            editingId ||
+            createLocalId(),
 
-        saveButton.textContent =
-            "Saving...";
+        type:
+            currentType,
 
+        title,
+
+        description,
+
+        date:
+            currentType === "note"
+                ? ""
+                : dateInput.value,
+
+        time:
+            currentType === "note"
+                ? ""
+                : timeInput.value,
+
+        location:
+            "",
+
+        company:
+            "",
+
+        position:
+            "",
+
+        meetingLink:
+            "",
+
+        createdAt:
+            existingItem?.createdAt ||
+            new Date().toISOString(),
+
+        updatedAt:
+            new Date().toISOString()
+    };
+
+
+    // =============================================
+    // EXTRA DATA
+    // =============================================
+
+    if (
+        currentType === "meeting"
+    ) {
+
+        item.location =
+            $("location")
+                ?.value
+                .trim() || "";
+
+        item.meetingLink =
+            $("meetingLink")
+                ?.value
+                .trim() || "";
     }
 
 
-    try {
+    if (
+        currentType === "interview"
+    ) {
 
-        // =================================================
-        // UPDATE EXISTING ITEM
-        // =================================================
+        item.company =
+            $("company")
+                ?.value
+                .trim() || "";
 
-        if (editingId) {
+        item.position =
+            $("position")
+                ?.value
+                .trim() || "";
+
+        item.meetingLink =
+            $("meetingLink")
+                ?.value
+                .trim() || "";
+    }
+
+
+    // =============================================
+    // SAVE LOCALLY FIRST
+    // =============================================
+
+    if (editingId) {
+
+        items =
+            items.map(
+                existing =>
+                    existing.id === editingId
+                        ? item
+                        : existing
+            );
+
+    } else {
+
+        items.unshift(item);
+    }
+
+
+    saveLocalItems(
+        currentUser.uid,
+        items
+    );
+
+
+    // =============================================
+    // IMMEDIATELY UPDATE UI
+    // =============================================
+
+    renderAll();
+
+    closeModal();
+
+
+    console.log(
+        "💾 Saved locally:",
+        item
+    );
+
+
+    // =============================================
+    // FIREBASE
+    // =============================================
+
+    if (navigator.onLine) {
+
+        try {
 
             const itemRef =
                 doc(
@@ -1081,304 +1820,214 @@ async function handleFormSubmit(event) {
                     "users",
                     currentUser.uid,
                     "plannerItems",
-                    editingId
+                    item.id
                 );
 
 
-            const updatedData = {
-
-                title,
-
-                description,
-
-                type: currentType,
-
+            const firebaseData = {
+                ...item,
                 updatedAt:
-                    serverTimestamp(),
-
-                date:
-                    currentType === "note"
-                        ? ""
-                        : dateInput.value,
-
-                time:
-                    currentType === "note"
-                        ? ""
-                        : timeInput.value
-
+                    serverTimestamp()
             };
 
 
-            if (currentType === "meeting") {
+            if (editingId) {
 
-                updatedData.location =
-                    $("location")
-                        ?.value
-                        .trim() || "";
-
-
-                updatedData.meetingLink =
-                    $("meetingLink")
-                        ?.value
-                        .trim() || "";
-
-
-                updatedData.company = "";
-
-                updatedData.position = "";
-
-            }
-
-
-            if (currentType === "interview") {
-
-                updatedData.company =
-                    $("company")
-                        ?.value
-                        .trim() || "";
-
-
-                updatedData.position =
-                    $("position")
-                        ?.value
-                        .trim() || "";
-
-
-                updatedData.meetingLink =
-                    $("meetingLink")
-                        ?.value
-                        .trim() || "";
-
-
-                updatedData.location = "";
-
-            }
-
-
-            if (currentType === "note") {
-
-                updatedData.location = "";
-
-                updatedData.company = "";
-
-                updatedData.position = "";
-
-                updatedData.meetingLink = "";
-
-            }
-
-
-            // =================================================
-            // IMPORTANT FIX
-            // =================================================
-
-            const updatePromise =
-                updateDoc(
+                await setDoc(
                     itemRef,
-                    updatedData
+                    firebaseData,
+                    {
+                        merge: true
+                    }
                 );
 
+            } else {
 
-            /*
-             * DO NOT WAIT FOR FIREBASE TO REACH THE SERVER.
-             *
-             * Firestore can save the write locally first.
-             * Firebase will synchronize it when internet
-             * becomes available.
-             */
-
-            updatePromise.catch((error) => {
-
-                console.error(
-                    "Background update error:",
-                    error
+                await setDoc(
+                    itemRef,
+                    {
+                        ...firebaseData,
+                        createdAt:
+                            serverTimestamp()
+                    }
                 );
-
-                alert(
-                    "The update could not be synchronized with Firebase yet. Your local data is preserved."
-                );
-
-            });
+            }
 
 
-            // Close immediately
-            closeModal();
+            console.log(
+                "☁️ Firebase synchronized"
+            );
 
+        } catch (error) {
 
-            return;
-        }
-
-
-        // =================================================
-        // CREATE NEW ITEM
-        // =================================================
-
-        const newItem = {
-
-            type: currentType,
-
-            title,
-
-            description,
-
-            date:
-                currentType === "note"
-                    ? ""
-                    : dateInput.value,
-
-            time:
-                currentType === "note"
-                    ? ""
-                    : timeInput.value,
-
-            location: "",
-
-            company: "",
-
-            position: "",
-
-            meetingLink: "",
-
-            createdAt:
-                serverTimestamp(),
-
-            updatedAt:
-                serverTimestamp()
-
-        };
-
-
-        // =================================================
-        // MEETING
-        // =================================================
-
-        if (currentType === "meeting") {
-
-            newItem.location =
-                $("location")
-                    ?.value
-                    .trim() || "";
-
-
-            newItem.meetingLink =
-                $("meetingLink")
-                    ?.value
-                    .trim() || "";
-
-        }
-
-
-        // =================================================
-        // INTERVIEW
-        // =================================================
-
-        if (currentType === "interview") {
-
-            newItem.company =
-                $("company")
-                    ?.value
-                    .trim() || "";
-
-
-            newItem.position =
-                $("position")
-                    ?.value
-                    .trim() || "";
-
-
-            newItem.meetingLink =
-                $("meetingLink")
-                    ?.value
-                    .trim() || "";
-
-        }
-
-
-        // =================================================
-        // IMPORTANT OFFLINE FIX
-        // =================================================
-
-        const addPromise =
-            addDoc(
-                getItemsCollection(),
-                newItem
+            console.warn(
+                "Firebase unavailable. Keeping local copy.",
+                error
             );
 
 
-        /*
-         * DO NOT WAIT HERE.
-         *
-         * Firestore can keep the write locally while offline.
-         * When Wi-Fi returns, Firebase synchronizes it.
-         */
+            addPendingOperation({
+                action:
+                    editingId
+                        ? "update"
+                        : "create",
 
-        addPromise
-            .then((docReference) => {
-
-                console.log(
-                    "✅ Firebase item synchronized:",
-                    docReference.id
-                );
-
-            })
-            .catch((error) => {
-
-                console.error(
-                    "Background save error:",
-                    error
-                );
-
-
-                alert(
-                    "The item is saved locally, but Firebase could not synchronize it yet. It will try again when you are online."
-                );
-
+                item
             });
+        }
 
+    } else {
 
-        // =================================================
-        // CLOSE IMMEDIATELY
-        // =================================================
+        // =========================================
+        // OFFLINE
+        // =========================================
 
-        closeModal();
+        addPendingOperation({
+
+            action:
+                editingId
+                    ? "update"
+                    : "create",
+
+            item
+        });
 
 
         console.log(
-            "✅ Item saved locally / queued for Firebase"
+            "🔴 Offline save queued"
         );
-
-
-    } catch (error) {
-
-        console.error(
-            "Save error:",
-            error
-        );
-
-
-        // Only show error if the local operation itself failed
-
-        alert(
-            "Unable to save this item. Please try again."
-        );
-
-
-        if (saveButton) {
-
-            saveButton.disabled = false;
-
-            saveButton.textContent =
-                "Save";
-
-        }
-
     }
-
 }
 
 
 // =====================================================
-// CHECK FINISHED
+// DELETE
+// =====================================================
+
+async function deleteItem(id) {
+
+    const item =
+        items.find(
+            existing =>
+                existing.id === id
+        );
+
+
+    if (!item) {
+        return;
+    }
+
+
+    const confirmed =
+        confirm(
+            "Are you sure you want to delete this item?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    // =============================================
+    // DELETE LOCALLY FIRST
+    // =============================================
+
+    items =
+        items.filter(
+            existing =>
+                existing.id !== id
+        );
+
+
+    saveLocalItems(
+        currentUser.uid,
+        items
+    );
+
+
+    renderAll();
+
+
+    // =============================================
+    // FIREBASE
+    // =============================================
+
+    if (navigator.onLine) {
+
+        try {
+
+            await deleteDoc(
+                doc(
+                    db,
+                    "users",
+                    currentUser.uid,
+                    "plannerItems",
+                    id
+                )
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Firebase delete failed:",
+                error
+            );
+
+
+            addPendingOperation({
+
+                action:
+                    "delete",
+
+                item: {
+                    id
+                }
+            });
+        }
+
+    } else {
+
+        addPendingOperation({
+
+            action:
+                "delete",
+
+            item: {
+                id
+            }
+        });
+    }
+}
+
+
+// =====================================================
+// EDIT
+// =====================================================
+
+function editItem(id) {
+
+    const item =
+        items.find(
+            existing =>
+                existing.id === id
+        );
+
+
+    if (!item) {
+        return;
+    }
+
+
+    openModal(
+        item.type,
+        item
+    );
+}
+
+
+// =====================================================
+// FINISHED
 // =====================================================
 
 function isFinished(item) {
@@ -1390,7 +2039,6 @@ function isFinished(item) {
     ) {
 
         return false;
-
     }
 
 
@@ -1407,7 +2055,6 @@ function isFinished(item) {
     ) {
 
         return false;
-
     }
 
 
@@ -1415,12 +2062,11 @@ function isFinished(item) {
         scheduled.getTime() <
         Date.now()
     );
-
 }
 
 
 // =====================================================
-// CHECK TODAY
+// TODAY
 // =====================================================
 
 function isToday(item) {
@@ -1431,11 +2077,11 @@ function isToday(item) {
     ) {
 
         return false;
-
     }
 
 
-    const now = new Date();
+    const now =
+        new Date();
 
 
     const year =
@@ -1458,7 +2104,6 @@ function isToday(item) {
         item.date ===
         `${year}-${month}-${day}`
     );
-
 }
 
 
@@ -1486,7 +2131,6 @@ function formatDate(date) {
     ) {
 
         return date;
-
     }
 
 
@@ -1499,7 +2143,6 @@ function formatDate(date) {
             year: "numeric"
         }
     );
-
 }
 
 
@@ -1532,7 +2175,6 @@ function formatTime(time) {
     ) {
 
         return time;
-
     }
 
 
@@ -1555,27 +2197,34 @@ function formatTime(time) {
             minute: "2-digit"
         }
     );
-
 }
 
 
 // =====================================================
-// MEETING LINK NAME
+// MEETING LINK
 // =====================================================
 
-function getMeetingLinkName(url, type) {
+function getMeetingLinkName(
+    url,
+    type
+) {
 
     const lower =
-        String(url || "").toLowerCase();
+        String(
+            url || ""
+        ).toLowerCase();
 
 
     if (
-        lower.includes("zoom.us") ||
-        lower.includes("zoom.com")
+        lower.includes(
+            "zoom.us"
+        ) ||
+        lower.includes(
+            "zoom.com"
+        )
     ) {
 
         return "Join Zoom";
-
     }
 
 
@@ -1589,7 +2238,6 @@ function getMeetingLinkName(url, type) {
     ) {
 
         return "Join Microsoft Teams";
-
     }
 
 
@@ -1600,28 +2248,27 @@ function getMeetingLinkName(url, type) {
     ) {
 
         return "Join Google Meet";
-
     }
 
 
     if (
-        lower.includes("webex.com")
+        lower.includes(
+            "webex.com"
+        )
     ) {
 
         return "Join Webex";
-
     }
 
 
     return type === "interview"
         ? "Join Interview"
         : "Open Meeting";
-
 }
 
 
 // =====================================================
-// CREATE ITEM
+// CREATE ITEM ELEMENT
 // =====================================================
 
 function createItem(item) {
@@ -1648,31 +2295,36 @@ function createItem(item) {
         titleHTML = `
 
             <div class="item-title">
-
-                ${escapeHTML(item.title)}
-
+                ${escapeHTML(
+                    item.title
+                )}
             </div>
 
         `;
-
     }
 
 
     let metaHTML = "";
 
 
-    if (item.type !== "note") {
+    if (
+        item.type !== "note"
+    ) {
 
         metaHTML += `
 
             <span>
                 📅
-                ${formatDate(item.date)}
+                ${formatDate(
+                    item.date
+                )}
             </span>
 
             <span>
                 ⏰
-                ${formatTime(item.time)}
+                ${formatTime(
+                    item.time
+                )}
             </span>
 
         `;
@@ -1693,7 +2345,6 @@ function createItem(item) {
                 </span>
 
             `;
-
         }
 
 
@@ -1712,7 +2363,6 @@ function createItem(item) {
                 </span>
 
             `;
-
         }
 
 
@@ -1731,9 +2381,7 @@ function createItem(item) {
                 </span>
 
             `;
-
         }
-
     }
 
 
@@ -1742,9 +2390,7 @@ function createItem(item) {
             ? `
 
                 <div class="item-meta">
-
                     ${metaHTML}
-
                 </div>
 
             `
@@ -1756,11 +2402,9 @@ function createItem(item) {
             ? `
 
                 <div class="item-description">
-
                     ${escapeHTML(
                         item.description
                     )}
-
                 </div>
 
             `
@@ -1791,7 +2435,6 @@ function createItem(item) {
             safeURL =
                 "https://" +
                 safeURL;
-
         }
 
 
@@ -1805,18 +2448,14 @@ function createItem(item) {
                 target="_blank"
                 rel="noopener noreferrer"
             >
-
                 🔗
-
                 ${getMeetingLinkName(
                     safeURL,
                     item.type
                 )}
-
             </a>
 
         `;
-
     }
 
 
@@ -1834,7 +2473,6 @@ function createItem(item) {
 
         </div>
 
-
         <div class="item-content">
 
             ${titleHTML}
@@ -1847,7 +2485,6 @@ function createItem(item) {
 
         </div>
 
-
         <div class="item-menu">
 
             <button
@@ -1858,28 +2495,22 @@ function createItem(item) {
                 ⋮
             </button>
 
-
             <div class="dropdown-menu">
 
                 <button
                     type="button"
                     class="edit-option"
                 >
-
                     ✏️
                     <span>Edit</span>
-
                 </button>
-
 
                 <button
                     type="button"
                     class="delete-option"
                 >
-
                     🗑️
                     <span>Delete</span>
-
                 </button>
 
             </div>
@@ -1913,15 +2544,14 @@ function createItem(item) {
         );
 
 
-    // =================================================
-    // MENU
-    // =================================================
-
-    if (dotsButton && menu) {
+    if (
+        dotsButton &&
+        menu
+    ) {
 
         dotsButton.addEventListener(
             "click",
-            (event) => {
+            event => {
 
                 event.preventDefault();
 
@@ -1933,7 +2563,7 @@ function createItem(item) {
                         ".dropdown-menu.show"
                     )
                     .forEach(
-                        (otherMenu) => {
+                        otherMenu => {
 
                             if (
                                 otherMenu !==
@@ -1943,9 +2573,7 @@ function createItem(item) {
                                 otherMenu.classList.remove(
                                     "show"
                                 );
-
                             }
-
                         }
                     );
 
@@ -1953,65 +2581,48 @@ function createItem(item) {
                 menu.classList.toggle(
                     "show"
                 );
-
             }
         );
-
     }
 
-
-    // =================================================
-    // EDIT
-    // =================================================
 
     if (editButton) {
 
         editButton.addEventListener(
             "click",
-            (event) => {
+            event => {
 
                 event.preventDefault();
 
                 event.stopPropagation();
 
-
                 closeAllMenus();
 
                 editItem(item.id);
-
             }
         );
-
     }
 
-
-    // =================================================
-    // DELETE
-    // =================================================
 
     if (deleteButton) {
 
         deleteButton.addEventListener(
             "click",
-            (event) => {
+            event => {
 
                 event.preventDefault();
 
                 event.stopPropagation();
 
-
                 closeAllMenus();
 
                 deleteItem(item.id);
-
             }
         );
-
     }
 
 
     return element;
-
 }
 
 
@@ -2038,16 +2649,18 @@ function renderList(
     }
 
 
-    container.innerHTML = "";
+    container.innerHTML =
+        "";
 
 
-    data.forEach((item) => {
+    data.forEach(
+        item => {
 
-        container.appendChild(
-            createItem(item)
-        );
-
-    });
+            container.appendChild(
+                createItem(item)
+            );
+        }
+    );
 
 
     if (empty) {
@@ -2056,9 +2669,7 @@ function renderList(
             data.length === 0
                 ? "block"
                 : "none";
-
     }
-
 }
 
 
@@ -2087,10 +2698,8 @@ function sortDateItems(data) {
                 dateA.getTime() -
                 dateB.getTime()
             );
-
         }
     );
-
 }
 
 
@@ -2129,15 +2738,21 @@ function renderAll() {
 
 
     const sortedMeetings =
-        sortDateItems(meetings);
+        sortDateItems(
+            meetings
+        );
 
 
     const sortedInterviews =
-        sortDateItems(interviews);
+        sortDateItems(
+            interviews
+        );
 
 
     const sortedToday =
-        sortDateItems(today);
+        sortDateItems(
+            today
+        );
 
 
     const sortedNotes =
@@ -2145,126 +2760,100 @@ function renderAll() {
             (a, b) => {
 
                 const aTime =
-                    a.createdAt?.seconds || 0;
+                    typeof a.createdAt === "string"
+                        ? new Date(
+                            a.createdAt
+                        ).getTime()
+                        : 0;
 
 
                 const bTime =
-                    b.createdAt?.seconds || 0;
+                    typeof b.createdAt === "string"
+                        ? new Date(
+                            b.createdAt
+                        ).getTime()
+                        : 0;
 
 
-                return bTime - aTime;
-
+                return (
+                    bTime -
+                    aTime
+                );
             }
         );
 
 
-    // =================================================
-    // COUNTS
-    // =================================================
-
     const todayCount =
         $("todayCount");
 
-
     if (todayCount) {
-
         todayCount.textContent =
             today.length;
-
     }
 
 
     const meetingCount =
         $("meetingCount");
 
-
     if (meetingCount) {
-
         meetingCount.textContent =
             meetings.length;
-
     }
 
 
     const interviewCount =
         $("interviewCount");
 
-
     if (interviewCount) {
-
         interviewCount.textContent =
             interviews.length;
-
     }
 
 
     const noteCount =
         $("noteCount");
 
-
     if (noteCount) {
-
         noteCount.textContent =
             notes.length;
-
     }
 
-
-    // =================================================
-    // BADGES
-    // =================================================
 
     const todayBadge =
         $("todayBadge");
 
-
     if (todayBadge) {
-
         todayBadge.textContent =
             today.length;
-
     }
 
 
     const meetingsBadge =
         $("meetingsBadge");
 
-
     if (meetingsBadge) {
-
         meetingsBadge.textContent =
             meetings.length;
-
     }
 
 
     const interviewsBadge =
         $("interviewsBadge");
 
-
     if (interviewsBadge) {
-
         interviewsBadge.textContent =
             interviews.length;
-
     }
 
 
     const notesBadge =
         $("notesBadge");
 
-
     if (notesBadge) {
-
         notesBadge.textContent =
             notes.length;
-
     }
 
-
-    // =================================================
-    // LISTS
-    // =================================================
 
     renderList(
         "todayList",
@@ -2292,141 +2881,6 @@ function renderAll() {
         "emptyNotes",
         sortedNotes
     );
-
-}
-
-
-// =====================================================
-// EDIT ITEM
-// =====================================================
-
-function editItem(id) {
-
-    const item =
-        items.find(
-            existingItem =>
-                existingItem.id === id
-        );
-
-
-    if (!item) {
-        return;
-    }
-
-
-    openModal(
-        item.type,
-        item
-    );
-
-}
-
-
-// =====================================================
-// DELETE ITEM
-// =====================================================
-
-async function deleteItem(id) {
-
-    const item =
-        items.find(
-            existingItem =>
-                existingItem.id === id
-        );
-
-
-    if (!item) {
-        return;
-    }
-
-
-    const confirmed =
-        confirm(
-            "Are you sure you want to delete this item?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    if (!currentUser) {
-        return;
-    }
-
-
-    try {
-
-        const itemReference =
-            doc(
-                db,
-                "users",
-                currentUser.uid,
-                "plannerItems",
-                id
-            );
-
-
-        // =================================================
-        // IMPORTANT:
-        // DO NOT WAIT FOR SERVER WHEN OFFLINE
-        // =================================================
-
-        const deletePromise =
-            deleteDoc(
-                itemReference
-            );
-
-
-        deletePromise.catch((error) => {
-
-            console.error(
-                "Background delete error:",
-                error
-            );
-
-
-            alert(
-                "The item was removed locally but Firebase could not synchronize the deletion yet."
-            );
-
-        });
-
-
-        // =================================================
-        // OPTIMISTIC LOCAL REMOVE
-        // =================================================
-
-        items =
-            items.filter(
-                existingItem =>
-                    existingItem.id !== id
-            );
-
-
-        renderAll();
-
-
-        console.log(
-            "✅ Item deleted locally / queued for Firebase"
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Delete error:",
-            error
-        );
-
-
-        alert(
-            "Unable to delete this item."
-        );
-
-    }
-
 }
 
 
@@ -2446,10 +2900,8 @@ function closeAllMenus() {
                 menu.classList.remove(
                     "show"
                 );
-
             }
         );
-
 }
 
 
@@ -2460,15 +2912,18 @@ function closeAllMenus() {
 function escapeHTML(value) {
 
     const div =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     div.textContent =
-        String(value ?? "");
+        String(
+            value ?? ""
+        );
 
 
     return div.innerHTML;
-
 }
 
 
@@ -2478,7 +2933,9 @@ function escapeHTML(value) {
 
 function escapeAttribute(value) {
 
-    return String(value ?? "")
+    return String(
+        value ?? ""
+    )
         .replace(
             /&/g,
             "&amp;"
@@ -2499,12 +2956,11 @@ function escapeAttribute(value) {
             />/g,
             "&gt;"
         );
-
 }
 
 
 // =====================================================
-// AUTOMATIC REFRESH
+// REFRESH
 // =====================================================
 
 setInterval(
@@ -2514,6 +2970,12 @@ setInterval(
 
             renderAll();
 
+            if (
+                navigator.onLine
+            ) {
+
+                syncPendingOperations();
+            }
         }
 
     },
