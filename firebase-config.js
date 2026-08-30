@@ -2,9 +2,24 @@
 // FIREBASE CONFIGURATION
 // =====================================================
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import {
+    initializeApp
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+
+import {
+    getAuth
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+import {
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+
+// =====================================================
+// FIREBASE CONFIG
+// =====================================================
 
 const firebaseConfig = {
     apiKey: "AIzaSyCC5U1iuygCr6xrGLZp690IDEycqasJMXw",
@@ -16,8 +31,27 @@ const firebaseConfig = {
     measurementId: "G-QSNE0Z2R4X"
 };
 
+
+// =====================================================
+// INITIALIZE FIREBASE
+// =====================================================
+
 const app = initializeApp(firebaseConfig);
+
+
+// =====================================================
+// AUTHENTICATION
+// =====================================================
 
 export const auth = getAuth(app);
 
-export const db = getFirestore(app);
+
+// =====================================================
+// FIRESTORE WITH OFFLINE PERSISTENCE
+// =====================================================
+
+export const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+    })
+});

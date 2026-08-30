@@ -2004,4 +2004,95 @@ to {
 transform: rotate(360deg);
 }
 }
+/* =====================================================
+   OFFLINE / ONLINE STATUS
+===================================================== */
 
+.offline-indicator {
+    position: fixed;
+
+    top: 15px;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    z-index: 5000;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    padding: 8px 13px;
+
+    border-radius: 999px;
+
+    background:
+        rgba(255, 255, 255, 0.95);
+
+    border: 1px solid #e2e8f0;
+
+    box-shadow:
+        0 8px 25px
+        rgba(15, 23, 42, 0.10);
+
+    backdrop-filter: blur(10px);
+
+    color: #334155;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+}
+
+
+/* OFFLINE */
+
+.offline-indicator.offline {
+
+    color: #dc2626;
+
+    border-color:
+        #fecaca;
+
+    background:
+        #fffafa;
+}
+
+
+/* SYNCING / ONLINE */
+
+.offline-indicator.syncing {
+
+    color: #4f46e5;
+
+    border-color:
+        #c7d2fe;
+
+    background:
+        #eef2ff;
+}
+
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+
+    .offline-indicator {
+
+        top: 8px;
+
+        font-size: 10px;
+
+        padding:
+            7px 10px;
+
+    }
+
+}

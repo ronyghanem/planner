@@ -1,3 +1,7 @@
+// =====================================================
+// FIREBASE IMPORTS
+// =====================================================
+
 import {
     collection,
     addDoc,
@@ -65,7 +69,6 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("MY PLANNER STARTING");
     console.log("=================================");
 
-    // Get DOM elements
     modal = $("modal");
     form = $("itemForm");
     titleInput = $("title");
@@ -83,33 +86,34 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("form:", form);
 
 
-    // If plannerApp does not exist, stop
     if (!plannerApp) {
+
         console.error(
             "ERROR: #plannerApp was not found in HTML."
         );
+
         return;
     }
 
 
-    // Hide planner while checking authentication
+    // Hide app while checking authentication
     plannerApp.style.display = "none";
+
 
     if (appLoading) {
         appLoading.style.display = "flex";
     }
 
 
-    // Setup buttons
     setupEventListeners();
     setupLogout();
 
 
     // =================================================
-    // START FIREBASE AUTH CHECK ONLY AFTER DOM EXISTS
+    // FIREBASE AUTH
     // =================================================
 
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, (user) => {
 
         console.log("---------------------------------");
         console.log("Firebase Auth State Changed");
@@ -127,13 +131,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             currentUser = null;
 
+
             if (unsubscribeItems) {
+
                 unsubscribeItems();
+
                 unsubscribeItems = null;
             }
 
 
-            // Redirect to login
             window.location.replace("login.html");
 
             return;
@@ -152,22 +158,22 @@ document.addEventListener("DOMContentLoaded", () => {
         currentUser = user;
 
 
-        // Show email
         const emailElement = $("userEmail");
 
+
         if (emailElement) {
+
             emailElement.textContent =
                 user.email || "User";
         }
 
 
-        // =============================================
-        // SHOW PLANNER
-        // =============================================
-
+        // Show planner
         if (appLoading) {
+
             appLoading.style.display = "none";
         }
+
 
         plannerApp.style.display = "block";
 
@@ -175,10 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("✅ Planner is now visible");
 
 
-        // =============================================
-        // START FIRESTORE
-        // =============================================
-
+        // Start Firestore
         startRealtimeItemsListener();
 
     });
@@ -196,6 +199,7 @@ function getItemsCollection() {
         return null;
     }
 
+
     return collection(
         db,
         "users",
@@ -206,12 +210,13 @@ function getItemsCollection() {
 
 
 // =====================================================
-// FIRESTORE LISTENER
+// FIRESTORE REALTIME LISTENER
 // =====================================================
 
 function startRealtimeItemsListener() {
 
     if (!currentUser) {
+
         console.warn(
             "Cannot start Firestore listener: no user."
         );
@@ -221,7 +226,9 @@ function startRealtimeItemsListener() {
 
 
     if (unsubscribeItems) {
+
         unsubscribeItems();
+
         unsubscribeItems = null;
     }
 
@@ -254,13 +261,17 @@ function startRealtimeItemsListener() {
 
             items = snapshot.docs.map(
                 (itemDocument) => ({
+
                     id: itemDocument.id,
+
                     ...itemDocument.data()
+
                 })
             );
 
 
             renderAll();
+
         },
 
         (error) => {
@@ -271,9 +282,13 @@ function startRealtimeItemsListener() {
             );
 
 
-            alert(
-                "Unable to load planner data. Check Firebase Firestore rules and configuration."
+            // Do not destroy the application.
+            // Firestore can still have local cached data.
+
+            console.log(
+                "Using locally cached planner data."
             );
+
         }
     );
 }
@@ -288,11 +303,14 @@ function setupEventListeners() {
     // TODAY
     const todayAction = $("todayAction");
 
+
     if (todayAction) {
+
         todayAction.addEventListener(
             "click",
             () => showSection("today")
         );
+
     }
 
 
@@ -300,11 +318,14 @@ function setupEventListeners() {
     const addMeetingAction =
         $("addMeetingAction");
 
+
     if (addMeetingAction) {
+
         addMeetingAction.addEventListener(
             "click",
             () => openModal("meeting")
         );
+
     }
 
 
@@ -312,11 +333,14 @@ function setupEventListeners() {
     const addInterviewAction =
         $("addInterviewAction");
 
+
     if (addInterviewAction) {
+
         addInterviewAction.addEventListener(
             "click",
             () => openModal("interview")
         );
+
     }
 
 
@@ -324,11 +348,14 @@ function setupEventListeners() {
     const addNoteAction =
         $("addNoteAction");
 
+
     if (addNoteAction) {
+
         addNoteAction.addEventListener(
             "click",
             () => openModal("note")
         );
+
     }
 
 
@@ -344,9 +371,13 @@ function setupEventListeners() {
                     const section =
                         button.dataset.section;
 
+
                     if (section) {
+
                         showSection(section);
+
                     }
+
                 }
             );
 
@@ -368,6 +399,7 @@ function setupEventListeners() {
     const closeModalBtn =
         $("closeModalBtn");
 
+
     if (closeModalBtn) {
 
         closeModalBtn.addEventListener(
@@ -382,6 +414,7 @@ function setupEventListeners() {
     const cancelBtn =
         $("cancelBtn");
 
+
     if (cancelBtn) {
 
         cancelBtn.addEventListener(
@@ -392,7 +425,7 @@ function setupEventListeners() {
     }
 
 
-    // CLICK OUTSIDE MODAL
+    // CLICK OUTSIDE
     if (modal) {
 
         modal.addEventListener(
@@ -400,7 +433,9 @@ function setupEventListeners() {
             (event) => {
 
                 if (event.target === modal) {
+
                     closeModal();
+
                 }
 
             }
@@ -415,8 +450,11 @@ function setupEventListeners() {
         (event) => {
 
             if (event.key === "Escape") {
+
                 closeModal();
+
                 closeAllMenus();
+
             }
 
         }
@@ -430,15 +468,19 @@ function setupEventListeners() {
 
             const target = event.target;
 
+
             if (
                 target instanceof Element &&
                 !target.closest(".item-menu")
             ) {
+
                 closeAllMenus();
+
             }
 
         }
     );
+
 }
 
 
@@ -476,6 +518,7 @@ function setupLogout() {
 
                 await signOut(auth);
 
+
                 window.location.replace(
                     "login.html"
                 );
@@ -487,6 +530,7 @@ function setupLogout() {
                     error
                 );
 
+
                 alert(
                     "Unable to logout. Please try again."
                 );
@@ -495,6 +539,7 @@ function setupLogout() {
 
         }
     );
+
 }
 
 
@@ -521,9 +566,7 @@ function showSection(section) {
 
 
     document
-        .querySelectorAll(
-            ".planner-section"
-        )
+        .querySelectorAll(".planner-section")
         .forEach((element) => {
 
             element.classList.add(
@@ -570,6 +613,7 @@ function showSection(section) {
         );
 
     }
+
 }
 
 
@@ -580,6 +624,7 @@ function showSection(section) {
 function openModal(type, item = null) {
 
     if (!modal || !form) {
+
         console.error(
             "Modal or form missing."
         );
@@ -607,9 +652,9 @@ function openModal(type, item = null) {
         $("modalIcon");
 
 
-    // =============================================
+    // =================================================
     // MEETING
-    // =============================================
+    // =================================================
 
     if (type === "meeting") {
 
@@ -637,11 +682,15 @@ function openModal(type, item = null) {
             <div class="form-group">
 
                 <label for="location">
+
                     Location
+
                     <span class="optional">
                         Optional
                     </span>
+
                 </label>
+
 
                 <input
                     type="text"
@@ -655,11 +704,15 @@ function openModal(type, item = null) {
             <div class="form-group">
 
                 <label for="meetingLink">
+
                     Meeting Link
+
                     <span class="optional">
                         Optional
                     </span>
+
                 </label>
+
 
                 <input
                     type="url"
@@ -673,9 +726,9 @@ function openModal(type, item = null) {
     }
 
 
-    // =============================================
+    // =================================================
     // INTERVIEW
-    // =============================================
+    // =================================================
 
     else if (type === "interview") {
 
@@ -705,11 +758,15 @@ function openModal(type, item = null) {
                 <div class="form-group">
 
                     <label for="company">
+
                         Company
+
                         <span class="optional">
                             Optional
                         </span>
+
                     </label>
+
 
                     <input
                         type="text"
@@ -723,11 +780,15 @@ function openModal(type, item = null) {
                 <div class="form-group">
 
                     <label for="position">
+
                         Position
+
                         <span class="optional">
                             Optional
                         </span>
+
                     </label>
+
 
                     <input
                         type="text"
@@ -743,11 +804,15 @@ function openModal(type, item = null) {
             <div class="form-group">
 
                 <label for="meetingLink">
+
                     Interview Link
+
                     <span class="optional">
                         Optional
                     </span>
+
                 </label>
+
 
                 <input
                     type="url"
@@ -761,9 +826,9 @@ function openModal(type, item = null) {
     }
 
 
-    // =============================================
+    // =================================================
     // NOTE
-    // =============================================
+    // =================================================
 
     else {
 
@@ -787,12 +852,13 @@ function openModal(type, item = null) {
 
 
         extraFields.innerHTML = "";
+
     }
 
 
-    // =============================================
+    // =================================================
     // LOAD EXISTING ITEM
-    // =============================================
+    // =================================================
 
     if (item) {
 
@@ -826,14 +892,18 @@ function openModal(type, item = null) {
 
 
             if (location) {
+
                 location.value =
                     item.location || "";
+
             }
 
 
             if (meetingLink) {
+
                 meetingLink.value =
                     item.meetingLink || "";
+
             }
 
         }
@@ -852,20 +922,26 @@ function openModal(type, item = null) {
 
 
             if (company) {
+
                 company.value =
                     item.company || "";
+
             }
 
 
             if (position) {
+
                 position.value =
                     item.position || "";
+
             }
 
 
             if (meetingLink) {
+
                 meetingLink.value =
                     item.meetingLink || "";
+
             }
 
         }
@@ -879,10 +955,13 @@ function openModal(type, item = null) {
     setTimeout(() => {
 
         if (titleInput) {
+
             titleInput.focus();
+
         }
 
     }, 100);
+
 }
 
 
@@ -899,12 +978,33 @@ function closeModal() {
 
     modal.classList.remove("active");
 
+
     editingId = null;
 
 
     if (form) {
+
         form.reset();
+
     }
+
+
+    // IMPORTANT:
+    // Always restore the Save button.
+
+    const saveButton =
+        form?.querySelector(".save-btn");
+
+
+    if (saveButton) {
+
+        saveButton.disabled = false;
+
+        saveButton.textContent =
+            "Save";
+
+    }
+
 }
 
 
@@ -960,6 +1060,7 @@ async function handleFormSubmit(event) {
     if (saveButton) {
 
         saveButton.disabled = true;
+
         saveButton.textContent =
             "Saving...";
 
@@ -968,9 +1069,9 @@ async function handleFormSubmit(event) {
 
     try {
 
-        // =========================================
-        // UPDATE
-        // =========================================
+        // =================================================
+        // UPDATE EXISTING ITEM
+        // =================================================
 
         if (editingId) {
 
@@ -1011,12 +1112,19 @@ async function handleFormSubmit(event) {
             if (currentType === "meeting") {
 
                 updatedData.location =
-                    $("location")?.value.trim() || "";
+                    $("location")
+                        ?.value
+                        .trim() || "";
+
 
                 updatedData.meetingLink =
-                    $("meetingLink")?.value.trim() || "";
+                    $("meetingLink")
+                        ?.value
+                        .trim() || "";
+
 
                 updatedData.company = "";
+
                 updatedData.position = "";
 
             }
@@ -1025,13 +1133,22 @@ async function handleFormSubmit(event) {
             if (currentType === "interview") {
 
                 updatedData.company =
-                    $("company")?.value.trim() || "";
+                    $("company")
+                        ?.value
+                        .trim() || "";
+
 
                 updatedData.position =
-                    $("position")?.value.trim() || "";
+                    $("position")
+                        ?.value
+                        .trim() || "";
+
 
                 updatedData.meetingLink =
-                    $("meetingLink")?.value.trim() || "";
+                    $("meetingLink")
+                        ?.value
+                        .trim() || "";
+
 
                 updatedData.location = "";
 
@@ -1041,96 +1158,195 @@ async function handleFormSubmit(event) {
             if (currentType === "note") {
 
                 updatedData.location = "";
+
                 updatedData.company = "";
+
                 updatedData.position = "";
+
                 updatedData.meetingLink = "";
 
             }
 
 
-            await updateDoc(
-                itemRef,
-                updatedData
-            );
+            // =================================================
+            // IMPORTANT FIX
+            // =================================================
+
+            const updatePromise =
+                updateDoc(
+                    itemRef,
+                    updatedData
+                );
+
+
+            /*
+             * DO NOT WAIT FOR FIREBASE TO REACH THE SERVER.
+             *
+             * Firestore can save the write locally first.
+             * Firebase will synchronize it when internet
+             * becomes available.
+             */
+
+            updatePromise.catch((error) => {
+
+                console.error(
+                    "Background update error:",
+                    error
+                );
+
+                alert(
+                    "The update could not be synchronized with Firebase yet. Your local data is preserved."
+                );
+
+            });
+
+
+            // Close immediately
+            closeModal();
+
+
+            return;
+        }
+
+
+        // =================================================
+        // CREATE NEW ITEM
+        // =================================================
+
+        const newItem = {
+
+            type: currentType,
+
+            title,
+
+            description,
+
+            date:
+                currentType === "note"
+                    ? ""
+                    : dateInput.value,
+
+            time:
+                currentType === "note"
+                    ? ""
+                    : timeInput.value,
+
+            location: "",
+
+            company: "",
+
+            position: "",
+
+            meetingLink: "",
+
+            createdAt:
+                serverTimestamp(),
+
+            updatedAt:
+                serverTimestamp()
+
+        };
+
+
+        // =================================================
+        // MEETING
+        // =================================================
+
+        if (currentType === "meeting") {
+
+            newItem.location =
+                $("location")
+                    ?.value
+                    .trim() || "";
+
+
+            newItem.meetingLink =
+                $("meetingLink")
+                    ?.value
+                    .trim() || "";
 
         }
 
 
-        // =========================================
-        // CREATE
-        // =========================================
+        // =================================================
+        // INTERVIEW
+        // =================================================
 
-        else {
+        if (currentType === "interview") {
 
-            const newItem = {
-
-                type: currentType,
-
-                title,
-
-                description,
-
-                date:
-                    currentType === "note"
-                        ? ""
-                        : dateInput.value,
-
-                time:
-                    currentType === "note"
-                        ? ""
-                        : timeInput.value,
-
-                location: "",
-
-                company: "",
-
-                position: "",
-
-                meetingLink: "",
-
-                createdAt:
-                    serverTimestamp(),
-
-                updatedAt:
-                    serverTimestamp()
-
-            };
+            newItem.company =
+                $("company")
+                    ?.value
+                    .trim() || "";
 
 
-            if (currentType === "meeting") {
-
-                newItem.location =
-                    $("location")?.value.trim() || "";
-
-                newItem.meetingLink =
-                    $("meetingLink")?.value.trim() || "";
-
-            }
+            newItem.position =
+                $("position")
+                    ?.value
+                    .trim() || "";
 
 
-            if (currentType === "interview") {
+            newItem.meetingLink =
+                $("meetingLink")
+                    ?.value
+                    .trim() || "";
 
-                newItem.company =
-                    $("company")?.value.trim() || "";
-
-                newItem.position =
-                    $("position")?.value.trim() || "";
-
-                newItem.meetingLink =
-                    $("meetingLink")?.value.trim() || "";
-
-            }
+        }
 
 
-            await addDoc(
+        // =================================================
+        // IMPORTANT OFFLINE FIX
+        // =================================================
+
+        const addPromise =
+            addDoc(
                 getItemsCollection(),
                 newItem
             );
 
-        }
 
+        /*
+         * DO NOT WAIT HERE.
+         *
+         * Firestore can keep the write locally while offline.
+         * When Wi-Fi returns, Firebase synchronizes it.
+         */
+
+        addPromise
+            .then((docReference) => {
+
+                console.log(
+                    "✅ Firebase item synchronized:",
+                    docReference.id
+                );
+
+            })
+            .catch((error) => {
+
+                console.error(
+                    "Background save error:",
+                    error
+                );
+
+
+                alert(
+                    "The item is saved locally, but Firebase could not synchronize it yet. It will try again when you are online."
+                );
+
+            });
+
+
+        // =================================================
+        // CLOSE IMMEDIATELY
+        // =================================================
 
         closeModal();
+
+
+        console.log(
+            "✅ Item saved locally / queued for Firebase"
+        );
+
 
     } catch (error) {
 
@@ -1140,11 +1356,12 @@ async function handleFormSubmit(event) {
         );
 
 
+        // Only show error if the local operation itself failed
+
         alert(
-            "Unable to save this item. Check Firebase Firestore."
+            "Unable to save this item. Please try again."
         );
 
-    } finally {
 
         if (saveButton) {
 
@@ -1156,6 +1373,7 @@ async function handleFormSubmit(event) {
         }
 
     }
+
 }
 
 
@@ -1170,7 +1388,9 @@ function isFinished(item) {
         !item.date ||
         !item.time
     ) {
+
         return false;
+
     }
 
 
@@ -1185,7 +1405,9 @@ function isFinished(item) {
             scheduled.getTime()
         )
     ) {
+
         return false;
+
     }
 
 
@@ -1193,6 +1415,7 @@ function isFinished(item) {
         scheduled.getTime() <
         Date.now()
     );
+
 }
 
 
@@ -1206,7 +1429,9 @@ function isToday(item) {
         item.type === "note" ||
         !item.date
     ) {
+
         return false;
+
     }
 
 
@@ -1233,6 +1458,7 @@ function isToday(item) {
         item.date ===
         `${year}-${month}-${day}`
     );
+
 }
 
 
@@ -1258,7 +1484,9 @@ function formatDate(date) {
             object.getTime()
         )
     ) {
+
         return date;
+
     }
 
 
@@ -1271,6 +1499,7 @@ function formatDate(date) {
             year: "numeric"
         }
     );
+
 }
 
 
@@ -1301,7 +1530,9 @@ function formatTime(time) {
         Number.isNaN(hours) ||
         Number.isNaN(minutes)
     ) {
+
         return time;
+
     }
 
 
@@ -1324,6 +1555,7 @@ function formatTime(time) {
             minute: "2-digit"
         }
     );
+
 }
 
 
@@ -1341,7 +1573,9 @@ function getMeetingLinkName(url, type) {
         lower.includes("zoom.us") ||
         lower.includes("zoom.com")
     ) {
+
         return "Join Zoom";
+
     }
 
 
@@ -1353,7 +1587,9 @@ function getMeetingLinkName(url, type) {
             "teams.live.com"
         )
     ) {
+
         return "Join Microsoft Teams";
+
     }
 
 
@@ -1362,20 +1598,25 @@ function getMeetingLinkName(url, type) {
             "meet.google.com"
         )
     ) {
+
         return "Join Google Meet";
+
     }
 
 
     if (
         lower.includes("webex.com")
     ) {
+
         return "Join Webex";
+
     }
 
 
     return type === "interview"
         ? "Join Interview"
         : "Open Meeting";
+
 }
 
 
@@ -1407,10 +1648,13 @@ function createItem(item) {
         titleHTML = `
 
             <div class="item-title">
+
                 ${escapeHTML(item.title)}
+
             </div>
 
         `;
+
     }
 
 
@@ -1449,6 +1693,7 @@ function createItem(item) {
                 </span>
 
             `;
+
         }
 
 
@@ -1467,6 +1712,7 @@ function createItem(item) {
                 </span>
 
             `;
+
         }
 
 
@@ -1485,7 +1731,9 @@ function createItem(item) {
                 </span>
 
             `;
+
         }
+
     }
 
 
@@ -1494,7 +1742,9 @@ function createItem(item) {
             ? `
 
                 <div class="item-meta">
+
                     ${metaHTML}
+
                 </div>
 
             `
@@ -1506,9 +1756,11 @@ function createItem(item) {
             ? `
 
                 <div class="item-description">
+
                     ${escapeHTML(
                         item.description
                     )}
+
                 </div>
 
             `
@@ -1535,9 +1787,11 @@ function createItem(item) {
                 safeURL
             )
         ) {
+
             safeURL =
                 "https://" +
                 safeURL;
+
         }
 
 
@@ -1551,14 +1805,18 @@ function createItem(item) {
                 target="_blank"
                 rel="noopener noreferrer"
             >
+
                 🔗
+
                 ${getMeetingLinkName(
                     safeURL,
                     item.type
                 )}
+
             </a>
 
         `;
+
     }
 
 
@@ -1607,8 +1865,10 @@ function createItem(item) {
                     type="button"
                     class="edit-option"
                 >
+
                     ✏️
                     <span>Edit</span>
+
                 </button>
 
 
@@ -1616,8 +1876,10 @@ function createItem(item) {
                     type="button"
                     class="delete-option"
                 >
+
                     🗑️
                     <span>Delete</span>
+
                 </button>
 
             </div>
@@ -1651,6 +1913,10 @@ function createItem(item) {
         );
 
 
+    // =================================================
+    // MENU
+    // =================================================
+
     if (dotsButton && menu) {
 
         dotsButton.addEventListener(
@@ -1658,6 +1924,7 @@ function createItem(item) {
             (event) => {
 
                 event.preventDefault();
+
                 event.stopPropagation();
 
 
@@ -1689,8 +1956,13 @@ function createItem(item) {
 
             }
         );
+
     }
 
+
+    // =================================================
+    // EDIT
+    // =================================================
 
     if (editButton) {
 
@@ -1699,7 +1971,9 @@ function createItem(item) {
             (event) => {
 
                 event.preventDefault();
+
                 event.stopPropagation();
+
 
                 closeAllMenus();
 
@@ -1711,6 +1985,10 @@ function createItem(item) {
     }
 
 
+    // =================================================
+    // DELETE
+    // =================================================
+
     if (deleteButton) {
 
         deleteButton.addEventListener(
@@ -1718,7 +1996,9 @@ function createItem(item) {
             (event) => {
 
                 event.preventDefault();
+
                 event.stopPropagation();
+
 
                 closeAllMenus();
 
@@ -1731,6 +2011,7 @@ function createItem(item) {
 
 
     return element;
+
 }
 
 
@@ -1777,6 +2058,7 @@ function renderList(
                 : "none";
 
     }
+
 }
 
 
@@ -1808,6 +2090,7 @@ function sortDateItems(data) {
 
         }
     );
+
 }
 
 
@@ -1875,83 +2158,113 @@ function renderAll() {
         );
 
 
+    // =================================================
     // COUNTS
+    // =================================================
 
     const todayCount =
         $("todayCount");
 
+
     if (todayCount) {
+
         todayCount.textContent =
             today.length;
+
     }
 
 
     const meetingCount =
         $("meetingCount");
 
+
     if (meetingCount) {
+
         meetingCount.textContent =
             meetings.length;
+
     }
 
 
     const interviewCount =
         $("interviewCount");
 
+
     if (interviewCount) {
+
         interviewCount.textContent =
             interviews.length;
+
     }
 
 
     const noteCount =
         $("noteCount");
 
+
     if (noteCount) {
+
         noteCount.textContent =
             notes.length;
+
     }
 
 
+    // =================================================
     // BADGES
+    // =================================================
 
     const todayBadge =
         $("todayBadge");
 
+
     if (todayBadge) {
+
         todayBadge.textContent =
             today.length;
+
     }
 
 
     const meetingsBadge =
         $("meetingsBadge");
 
+
     if (meetingsBadge) {
+
         meetingsBadge.textContent =
             meetings.length;
+
     }
 
 
     const interviewsBadge =
         $("interviewsBadge");
 
+
     if (interviewsBadge) {
+
         interviewsBadge.textContent =
             interviews.length;
+
     }
 
 
     const notesBadge =
         $("notesBadge");
 
+
     if (notesBadge) {
+
         notesBadge.textContent =
             notes.length;
+
     }
 
 
+    // =================================================
     // LISTS
+    // =================================================
 
     renderList(
         "todayList",
@@ -1979,11 +2292,12 @@ function renderAll() {
         "emptyNotes",
         sortedNotes
     );
+
 }
 
 
 // =====================================================
-// EDIT
+// EDIT ITEM
 // =====================================================
 
 function editItem(id) {
@@ -2004,11 +2318,12 @@ function editItem(id) {
         item.type,
         item
     );
+
 }
 
 
 // =====================================================
-// DELETE
+// DELETE ITEM
 // =====================================================
 
 async function deleteItem(id) {
@@ -2043,15 +2358,60 @@ async function deleteItem(id) {
 
     try {
 
-        await deleteDoc(
+        const itemReference =
             doc(
                 db,
                 "users",
                 currentUser.uid,
                 "plannerItems",
                 id
-            )
+            );
+
+
+        // =================================================
+        // IMPORTANT:
+        // DO NOT WAIT FOR SERVER WHEN OFFLINE
+        // =================================================
+
+        const deletePromise =
+            deleteDoc(
+                itemReference
+            );
+
+
+        deletePromise.catch((error) => {
+
+            console.error(
+                "Background delete error:",
+                error
+            );
+
+
+            alert(
+                "The item was removed locally but Firebase could not synchronize the deletion yet."
+            );
+
+        });
+
+
+        // =================================================
+        // OPTIMISTIC LOCAL REMOVE
+        // =================================================
+
+        items =
+            items.filter(
+                existingItem =>
+                    existingItem.id !== id
+            );
+
+
+        renderAll();
+
+
+        console.log(
+            "✅ Item deleted locally / queued for Firebase"
         );
+
 
     } catch (error) {
 
@@ -2066,6 +2426,7 @@ async function deleteItem(id) {
         );
 
     }
+
 }
 
 
@@ -2088,6 +2449,7 @@ function closeAllMenus() {
 
             }
         );
+
 }
 
 
@@ -2106,6 +2468,7 @@ function escapeHTML(value) {
 
 
     return div.innerHTML;
+
 }
 
 
@@ -2116,11 +2479,27 @@ function escapeHTML(value) {
 function escapeAttribute(value) {
 
     return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        );
+
 }
 
 
@@ -2132,7 +2511,9 @@ setInterval(
     () => {
 
         if (currentUser) {
+
             renderAll();
+
         }
 
     },
