@@ -3,7 +3,7 @@
 // =====================================================
 
 const CACHE_NAME =
-    "my-planner-v1";
+    "my-planner-v2";
 
 
 // =====================================================
@@ -20,7 +20,17 @@ const APP_FILES = [
 
     "./script.js",
 
-    "./firebase-config.js",
+    "./auth.js",
+
+    "./auth.css",
+
+    "./login.html",
+
+    "./signup.html",
+
+    "./forgot-password.html",
+
+    "./reset-password.html",
 
     "./manifest.json",
 
@@ -152,7 +162,10 @@ self.addEventListener(
                 "googleapis.com"
             ) ||
             request.url.includes(
-                "firebase"
+                "gstatic.com"
+            ) ||
+            request.url.includes(
+                "firebaseio.com"
             )
         ) {
 
